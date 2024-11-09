@@ -10,20 +10,14 @@ import (
 	"github.com/joho/godotenv"
 )
 
-
-
-
-
-
 func init() {
-	err:= godotenv.Load(".env")
+	err := godotenv.Load(".env")
 	if err != nil {
 		fmt.Println("Error loading .env file")
 	}
 	global.MongoConnect(os.Getenv("MONGO_URI"), os.Getenv("MONGO_DATABASE"))
-	
-}
 
+}
 
 func routes(app *fiber.App) {
 	app.Get("/health", func(c *fiber.Ctx) error {
@@ -33,20 +27,21 @@ func routes(app *fiber.App) {
 	connectionGroup.Get("/", controllers.GetConnections)
 	connectionGroup.Post("/", controllers.AddConnection)
 	connectionGroup.Get("/:ConnID/sync-db", controllers.SyncConnectionDatabases)
-
+	snapshotGroup := app.Group("/snapshot")
+	snapshotGroup.Post("/:ConnID", controllers.TakSnapshot)
 }
 
-
-func main()  {
+func main() {
 	var app = global.App()
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("BoyCat4Life")
 	})
 	routes(app)
-	if err:= app.Listen(
+	if err := app.Listen(
 		":" + os.Getenv("PORT"),
 	); err != nil {
 		panic(err)
 	}
 	fmt.Println("Server started on port " + os.Getenv("PORT"))
-}	
+
+}

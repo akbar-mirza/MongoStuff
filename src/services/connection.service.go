@@ -12,10 +12,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-
-
-
-
 func AddConnection(
 	params interfaces.Connection,
 ) interface{} {
@@ -58,8 +54,6 @@ var Collection = global.GetCollection("connections")
 	return doc
 }
 
-
-
 func GetConnections(
 	userID string,
 ) interface{} {
@@ -82,6 +76,26 @@ func GetConnections(
 	return connections
 }
 
+func GetConnection(
+	connectionID string,
+) (
+	interfaces.Connection,
+	error,
+)  {
+	var Collection = global.GetCollection("connections")
+	var connection interfaces.Connection	
+	err := Collection.FindOne(
+		context.TODO(),
+		bson.M{"connectionID": connectionID},
+	).Decode(&connection)
+	if err != nil {
+		fmt.Println("Error getting connection")
+		fmt.Println(err)
+		return connection, err
+	}
+
+	return connection, nil
+}
 
 func ConnectionConnect(
 	URI string,
@@ -100,7 +114,6 @@ func ConnectionConnect(
 	return client
 	
 }
-
 
 func SyncConnectionDatabases(
 	connectionID string,
