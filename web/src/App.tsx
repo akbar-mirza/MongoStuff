@@ -1,21 +1,37 @@
-import { Card, CardHeader, CardBody, Image } from "@nextui-org/react";
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import Layout from "./components/layout";
+import MainTabs from "./components/tabs";
+import Connections from "./pages/connections/connections";
+import ConnectionFullView from "./pages/connections/connectionView";
+import { Toaster } from "sonner";
+
+const router = createBrowserRouter([
+  {
+    path: "/",
+    element: (
+      <>
+        <Toaster />
+        <MainTabs />
+        <Connections />
+      </>
+    ),
+  },
+  {
+    path: "/connection",
+    element: <h1>Connection</h1>,
+  },
+  {
+    path: "/connection/:id",
+    element: <ConnectionFullView />,
+  },
+]);
 
 export default function App() {
   return (
-    <Card className="py-4">
-      <CardHeader className="pb-0 pt-2 px-4 flex-col items-start">
-        <p className="text-tiny uppercase font-bold">Daily Mix</p>
-        <small className="text-default-500">12 Tracks</small>
-        <h4 className="font-bold text-large">Frontend Radio</h4>
-      </CardHeader>
-      <CardBody className="overflow-visible py-2">
-        <Image
-          alt="Card background"
-          className="object-cover rounded-xl"
-          src="https://nextui.org/images/hero-card-complete.jpeg"
-          width={270}
-        />
-      </CardBody>
-    </Card>
+    <>
+      <Layout>
+        <RouterProvider router={router} />
+      </Layout>
+    </>
   );
 }

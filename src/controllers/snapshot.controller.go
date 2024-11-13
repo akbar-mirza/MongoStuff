@@ -10,11 +10,23 @@ func TakSnapshot(
 	c *fiber.Ctx,
 ) error {
 	ConnID := c.Params("ConnID")
-	Database := c.Params("Database")
+
+	// Parse the request body
+	type Request struct {
+		Database    string `json:"database"`
+		Compression bool   `json:"compression"`
+	}
+
+	body := new(Request)
+
+	if err := c.BodyParser(body); err != nil {
+		return err
+	}
 
 	snap, err := services.TakSnapshot(
 		ConnID,
-		Database,
+		body.Database,
+		body.Compression,
 	)
 
 	if err != nil {
@@ -27,4 +39,29 @@ func TakSnapshot(
 		"message":  "Snapshot has been taken successfully",
 		"snapshot": snap,
 	})
+}
+
+func GetSnapshots(
+	c *fiber.Ctx,
+) error {
+	connID := c.Params("ConnID")
+	snaps := services.GetSnapshots(connID)
+	return c.JSON(fiber.Map{
+		"snapshots": snaps,
+	})
+}
+
+func GetSnapshot(
+	c *fiber.Ctx,
+) error {
+	SnapID := c.Params("SnapID")
+
+	snap, err := services.GetSnapshot(SnapID)
+	if err != nil {
+		return c.JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	return c.JSON(snap)
 }
