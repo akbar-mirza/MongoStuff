@@ -11,6 +11,7 @@ import {
   ModalContent,
   ModalFooter,
   ModalHeader,
+  Pagination,
   Select,
   SelectItem,
   Spacer,
@@ -21,12 +22,24 @@ import {
   TableColumn,
   TableHeader,
   TableRow,
+  Tooltip,
   useDisclosure,
 } from "@nextui-org/react";
 import React, { useEffect, useState } from "react";
 import SnapShotAPI, { TSnapShot } from "../../../api/snapshot";
 
-import { Boxes, Camera, LinkIcon, Pen, Plus, Shrink } from "lucide-react";
+import {
+  Boxes,
+  Camera,
+  DeleteIcon,
+  Download,
+  LinkIcon,
+  Pen,
+  Plus,
+  Shrink,
+  Terminal,
+  Trash,
+} from "lucide-react";
 import { useParams } from "react-router-dom";
 import ConnectionAPI from "../../../api/connection";
 import { useConnectionStore } from "../../../stores/connection.store";
@@ -83,7 +96,7 @@ export function TakeSnapshotModal() {
                 {isLoading ? "Taking Snapshot" : "Take Snapshot"}
               </ModalHeader>
               <ModalBody className="flex flex-col gap-4">
-                <div className="flex items-center justify-between ">
+                <div className="flex items-center justify-between">
                   <div className="flex gap-2">
                     <Boxes size={20} />
                     <p className="text-sm text-bold">Cluster Snapshot</p>
@@ -160,6 +173,7 @@ export default function ConnectionSnapshots() {
     { key: "status", label: "Status" },
     { key: "duration", label: "Duration" },
     { key: "size", label: "Size" },
+    { key: "actions", label: "Actions" },
   ];
 
   useEffect(() => {
@@ -192,6 +206,15 @@ export default function ConnectionSnapshots() {
                 : parseInt(cellValue) / 1000 + "s"}
             </p>
           );
+
+        case "size":
+          return (
+            <p className="text-sm text-bold">
+              {parseInt(cellValue) / 1024 > 1024
+                ? (parseInt(cellValue) / 1024 / 1024).toFixed(2) + " mb"
+                : (parseInt(cellValue) / 1024).toFixed(2) + " kb"}
+            </p>
+          );
         case "status":
           return (
             <Chip
@@ -221,12 +244,45 @@ export default function ConnectionSnapshots() {
               {cellValue?.length ? cellValue : "Cluster"}
             </Chip>
           );
+        case "actions":
+          return (
+            <div className="flex gap-2">
+              <Tooltip content="View Logs">
+                <span className="text-lg cursor-pointer active:opacity-50">
+                  <Terminal size={20} />
+                </span>
+              </Tooltip>
+              <Tooltip content="Download Snapshot">
+                <span className="text-lg cursor-pointer text-primary-50 active:opacity-50">
+                  <Download size={20} />
+                </span>
+              </Tooltip>
+              <Tooltip color="danger" content="Delete Snapshot">
+                <span className="text-lg cursor-pointer text-danger active:opacity-50">
+                  <Trash size={20} />
+                </span>
+              </Tooltip>
+            </div>
+          );
         default:
           return cellValue;
       }
     },
     []
   );
+
+  const [page, setPage] = React.useState(1);
+  const rowsPerPage = 8;
+
+  const pages = Math.ceil(snapshotList.length / rowsPerPage);
+
+  const items = React.useMemo(() => {
+    const start = (page - 1) * rowsPerPage;
+    const end = start + rowsPerPage;
+
+    return snapshotList.slice(start, end);
+  }, [page, rowsPerPage, snapshotList]);
+
   return (
     <div className="w-full">
       <div className="flex justify-end w-full">
@@ -244,13 +300,35 @@ export default function ConnectionSnapshots() {
         <TakeSnapshotModal />
       </div>
       <Spacer y={4} />
-      <Table aria-label="Example table with dynamic content">
+      <Table
+        aria-label="Example table with dynamic content"
+        bottomContent={
+          <div className="flex justify-center w-full">
+            <Pagination
+              isCompact
+              showControls
+              showShadow
+              color="default"
+              page={page}
+              total={pages}
+              onChange={(page) => setPage(page)}
+            />
+          </div>
+        }
+      >
         <TableHeader columns={columns}>
           {(column) => (
             <TableColumn key={column.key}>{column.label}</TableColumn>
           )}
         </TableHeader>
-        <TableBody items={snapshotList || []}>
+        <TableBody
+          items={
+            items.map((item) => ({
+              ...item,
+              actions: "",
+            })) || []
+          }
+        >
           {(item) => (
             <TableRow key={item?.snapshotID}>
               {(columnKey) => (
