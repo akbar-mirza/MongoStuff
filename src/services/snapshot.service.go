@@ -33,6 +33,7 @@ func TakSnapshot(
 	snapshotID := libs.RandomString("snap_", 12)
 	fmt.Println("Snapshot ID:", snapshotID)
 	outputFile := ".stuffs/snapshots" + "/" + snapshotID + "_" + unixString
+
 	if compression {
 		outputFile += ".gz"
 	}

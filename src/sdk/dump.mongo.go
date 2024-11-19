@@ -2,31 +2,9 @@ package sdk
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 )
-
-// PATH TO MONGO-TOOLS
-var PATH = "bin"
-
-// const DB =
-//   "mongodb+srv://ashmirza:gaXxxzkAt9QwVo5P@opensourceworkspace.mpvkox0.mongodb.net/?retryWrites=true&w=majority&appName=OpenSourceWorkspace";
-
-// const cammand = `bin/mongodump ${DB} --db clikclick`;
-
-// const bsonDump = `bin/bsondump --outFile=links.json dump/clikclick/links.bson`;
-
-// const restore = `bin/mongorestore --db restore --uri 'mongodb+srv://ashmirza:gaXxxzkAt9QwVo5P@opensourceworkspace.mpvkox0.mongodb.net/restore'  dump/clikclick`;
-
-// const { exec } = require("child_process");
-
-// exec(cammand, (error, stdout, stderr) => {
-//   if (error) {
-//     console.error(`exec error: ${error}`);
-//     return;
-//   }
-//   console.log(`stdout: ${stdout}`);
-//   console.error(`stderr: ${stderr}`);
-// });
 
 type MongoDump struct {
 	Database    string
@@ -44,20 +22,23 @@ func Dump(
 	params MongoDump,
 ) MongoDumpResponse {
 
+	// PATH TO MONGO-TOOLS
+	PATH := os.Getenv("MONGODB_TOOLS_PATH")
+	fmt.Println("PATH:", PATH)
 	fmt.Println("Dumping Database:", params.Database)
-	var command = PATH + "/mongodump" + " --uri=" + params.URI
+	var command = PATH + "mongodump" + " --uri=" + params.URI
 
 	// Entire Cluster Dump
 	if params.Database != "" {
-		command += " --db " + params.Database
+		command += " --db=" + params.Database
 	}
 
-	if params.OutputDir != "" {
-		command += " --out " + params.OutputDir
+	if params.OutputDir != "" && !params.Compression {
+		command += " --out=" + params.OutputDir
 	}
 
 	if params.Compression {
-		command += " --gzip"
+		command += " --archive=" + params.OutputDir + " --gzip"
 	}
 
 	fmt.Println("Command:", command)

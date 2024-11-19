@@ -5,3 +5,6 @@ node_modules
 .stuffs
 bin
 .DS_Store
+
+# ignore go build binary
+main

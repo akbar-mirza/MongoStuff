@@ -54,6 +54,7 @@ func GetConnection(
 	}
 	return c.JSON(connection)
 }
+
 func SyncConnectionDatabases(
 	c *fiber.Ctx,
 ) error {
