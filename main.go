@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"mongostuff/src/controllers"
 	global "mongostuff/src/globals"
 	"os"
@@ -18,6 +19,9 @@ func init() {
 	}
 	global.MongoConnect(os.Getenv("MONGO_URI"), os.Getenv("MONGO_DATABASE"))
 
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	slog.SetDefault(logger)
+
 }
 
 func routes(app *fiber.App) {
@@ -25,8 +29,14 @@ func routes(app *fiber.App) {
 		return c.SendString("Hello, World!")
 	})
 	app.Get("/test", func(c *fiber.Ctx) error {
+		// // Path to the file on the server
+		// filePath := "./test.txt"
 
-		return c.SendString("Test")
+		// // Set a custom file name for the download
+		// c.Set("Content-Disposition", "attachment; filename=\"custom_name.txt\"")
+
+		// Send the file
+		return controllers.DownloadSnapshot(c)
 	})
 
 	// [Connection Routes]
@@ -42,6 +52,7 @@ func routes(app *fiber.App) {
 	snapshotGroup.Post("/:ConnID", controllers.TakSnapshot)
 	snapshotGroup.Get("/:ConnID", controllers.GetSnapshots)
 	snapshotGroup.Get("/:ConnID/:SnapID", controllers.GetSnapshot)
+	snapshotGroup.Get("/:ConnID/:SnapID/download", controllers.DownloadSnapshot)
 }
 
 func main() {
@@ -49,7 +60,10 @@ func main() {
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("MongoStuff API")
 	})
-	app.Use(cors.New())
+	app.Use(cors.New(cors.Config{
+		ExposeHeaders: "Content-Disposition",
+		AllowOrigins:  "*",
+	}))
 
 	routes(app)
 	if err := app.Listen(

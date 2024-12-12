@@ -1,11 +1,6 @@
 import {
   Button,
   Chip,
-  Dropdown,
-  DropdownItem,
-  DropdownMenu,
-  DropdownTrigger,
-  Input,
   Modal,
   ModalBody,
   ModalContent,
@@ -23,7 +18,7 @@ import {
   TableHeader,
   TableRow,
   Tooltip,
-  useDisclosure,
+  useDisclosure
 } from "@nextui-org/react";
 import React, { useEffect, useState } from "react";
 import SnapShotAPI, { TSnapShot } from "../../../api/snapshot";
@@ -31,20 +26,15 @@ import SnapShotAPI, { TSnapShot } from "../../../api/snapshot";
 import {
   Boxes,
   Camera,
-  DeleteIcon,
   Download,
-  LinkIcon,
-  Pen,
-  Plus,
   Shrink,
   Terminal,
-  Trash,
+  Trash
 } from "lucide-react";
 import { useParams } from "react-router-dom";
-import ConnectionAPI from "../../../api/connection";
+import { toast } from "sonner";
 import { useConnectionStore } from "../../../stores/connection.store";
 import { useSnapshotStore } from "../../../stores/snapshot.store";
-import { toast } from "sonner";
 
 export function TakeSnapshotModal() {
   const { connection } = useConnectionStore();
@@ -156,6 +146,56 @@ export function TakeSnapshotModal() {
   );
 }
 
+export function RenderLogs({ snapshot_id }: { snapshot_id: string }) {
+  const { isOpen, onOpen, onOpenChange, onClose } = useDisclosure();
+
+  const { getSnapshot, snapshot, setSnapshot } = useSnapshotStore();
+  const { connection } = useConnectionStore();
+
+  useEffect(() => {
+    if (isOpen) {
+      console.log("Snapshot ID:");
+      getSnapshot(connection?.connectionID as string, snapshot_id as string);
+    }
+  }, [isOpen, snapshot_id]);
+
+  return (
+    <>
+      <span
+        className="text-lg cursor-pointer active:opacity-50"
+        onClick={onOpen}
+      >
+        <Terminal size={20} />
+      </span>
+      <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="5xl" scrollBehavior="inside">
+        <ModalContent>
+          <ModalHeader className="flex gap-2">
+            <Terminal size={20} />
+            <p className="text-sm text-bold">Logs</p>
+          </ModalHeader>
+          <ModalBody className="flex flex-col gap-4">
+            <pre className="whitespace-pre-wrap break-before-right text-medium">
+              {snapshot?.logs}
+            </pre>
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              color="danger"
+              variant="flat"
+              onPress={() => {
+                onClose();
+                setSnapshot(null);
+              }}
+            >
+              Close
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+    </>
+  );
+}
+
 export type Props = {
   ConnectionID: string;
 };
@@ -186,8 +226,30 @@ export default function ConnectionSnapshots() {
   };
 
   const renderCell = React.useCallback(
-    (item: TSnapShot, columnKey: keyof TSnapShot) => {
-      const cellValue = item[columnKey].toString();
+    (item: TSnapShot, columnKey: keyof TSnapShot | 'actions') => {
+      if (columnKey === 'actions') {
+        return (
+          <div className="flex gap-2">
+            <Tooltip content="View Logs">
+              <RenderLogs snapshot_id={item.snapshotID} />
+            </Tooltip>
+            <Tooltip content="Download Snapshot">
+              <span className="text-lg cursor-pointer text-primary-50 active:opacity-50">
+                <Download size={20} onClick={() => {
+                  SnapShotAPI.DownloadSnapShotRequest(item.connectionID, item.snapshotID);
+                }}/>
+              </span>
+            </Tooltip>
+            <Tooltip color="danger" content="Delete Snapshot">
+              <span className="text-lg cursor-pointer text-danger active:opacity-50">
+                <Trash size={20} />
+              </span>
+            </Tooltip>
+          </div>
+        );
+      }
+      
+      const cellValue = item[columnKey]?.toString() || "";
 
       switch (columnKey) {
         case "timestamp":
@@ -244,26 +306,6 @@ export default function ConnectionSnapshots() {
               {cellValue?.length ? cellValue : "Cluster"}
             </Chip>
           );
-        case "actions":
-          return (
-            <div className="flex gap-2">
-              <Tooltip content="View Logs">
-                <span className="text-lg cursor-pointer active:opacity-50">
-                  <Terminal size={20} />
-                </span>
-              </Tooltip>
-              <Tooltip content="Download Snapshot">
-                <span className="text-lg cursor-pointer text-primary-50 active:opacity-50">
-                  <Download size={20} />
-                </span>
-              </Tooltip>
-              <Tooltip color="danger" content="Delete Snapshot">
-                <span className="text-lg cursor-pointer text-danger active:opacity-50">
-                  <Trash size={20} />
-                </span>
-              </Tooltip>
-            </div>
-          );
         default:
           return cellValue;
       }
@@ -286,17 +328,6 @@ export default function ConnectionSnapshots() {
   return (
     <div className="w-full">
       <div className="flex justify-end w-full">
-        {/* <Button
-          // color="primary"
-          className="shadow-lg bg-primary-50"
-          size="sm"
-          startContent={!isLoading && <Camera size={18} />}
-          variant="shadow"
-          isLoading={isLoading}
-          onClick={handleTakeSnapshot}
-        >
-          Take Snapshot
-        </Button> */}
         <TakeSnapshotModal />
       </div>
       <Spacer y={4} />
@@ -332,7 +363,7 @@ export default function ConnectionSnapshots() {
           {(item) => (
             <TableRow key={item?.snapshotID}>
               {(columnKey) => (
-                <TableCell>{renderCell(item, columnKey)}</TableCell>
+                <TableCell>{renderCell(item, columnKey as keyof TSnapShot)}</TableCell>
               )}
             </TableRow>
           )}

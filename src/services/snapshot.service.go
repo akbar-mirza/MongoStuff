@@ -152,3 +152,44 @@ func GetSnapshot(
 
 	return snapshot, nil
 }
+
+// download output interface
+type DownloadSnapshotRes struct {
+	FileName        string
+	FilePath        string
+	FileExt         string
+	FileNameWithExt string
+}
+
+func DownloadSnapshot(
+	snapshotID string,
+) (
+	DownloadSnapshotRes, error) {
+	snapshot, err := GetSnapshot(snapshotID)
+
+	if err != nil {
+		fmt.Println("Error getting snapshot")
+		fmt.Println(err)
+		return DownloadSnapshotRes{
+			FileName:        "",
+			FilePath:        "",
+			FileExt:         "",
+			FileNameWithExt: "",
+		}, err
+	}
+	fileName := snapshotID + "_" + strconv.FormatInt(snapshot.Timestamp, 10)
+	outputFile := ".stuffs/snapshots" + "/" + fileName
+
+	ext := ""
+	if snapshot.Compression {
+		outputFile += ".gz"
+		ext = ".gz"
+	}
+
+	return DownloadSnapshotRes{
+		FileName:        fileName,
+		FilePath:        outputFile,
+		FileExt:         ext,
+		FileNameWithExt: fileName + ext,
+	}, nil
+}

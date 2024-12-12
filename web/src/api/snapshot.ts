@@ -24,7 +24,7 @@ const ListSnapShotRequest = async (connectionID: string) => {
 
 const GetSnapShotRequest = async (connectionID: string, snapshotID: string) => {
   const [snapshot, error] = await Get<TSnapShot, TErrorResp>(
-    `snapshot/${connectionID}/${snapshotID}`,
+    `snapshot/${connectionID}/${snapshotID}`
   );
   return { snapshot, error };
 };
@@ -34,7 +34,7 @@ const TakeSnapShotRequest = async (
   params?: {
     database?: string;
     compression?: boolean;
-  },
+  }
 ) => {
   const [snapshot, error] = await Post<
     {
@@ -53,10 +53,37 @@ const TakeSnapShotRequest = async (
   return { snapshot: snapshot?.snapshot, error };
 };
 
+const DownloadSnapShotRequest = async (
+  connectionID: string,
+  snapshotID: string
+) => {
+  const [snapshot, error] = await Get<Blob, TErrorResp>(
+    `snapshot/${connectionID}/${snapshotID}/download`,
+    {
+      Blob: true,
+    }
+  );
+
+  if (!error && snapshot) {
+    // Create a temporary download link
+    const url = window.URL.createObjectURL(snapshot);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = snapshotID;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    // Clean up the URL object
+    window.URL.revokeObjectURL(url);
+  }
+  return { snapshot, error };
+};
+
 const SnapShotAPI = {
   ListSnapShotRequest,
   GetSnapShotRequest,
   TakeSnapShotRequest,
+  DownloadSnapShotRequest,
 };
 
 export default SnapShotAPI;

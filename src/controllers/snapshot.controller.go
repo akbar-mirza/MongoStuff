@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"log/slog"
 	"mongostuff/src/services"
 
 	"github.com/gofiber/fiber/v2"
@@ -62,6 +63,24 @@ func GetSnapshot(
 			"error": err.Error(),
 		})
 	}
-
 	return c.JSON(snap)
+}
+
+func DownloadSnapshot(
+	c *fiber.Ctx,
+) error {
+	SnapID := c.Params("SnapID")
+	downloadPath, error := services.DownloadSnapshot(SnapID)
+	slog.Info("Downloading Snapshot", "SnapshotID", SnapID, "OutputFile", downloadPath.FilePath, "FileName", downloadPath.FileNameWithExt)
+	if error != nil {
+		return c.JSON(fiber.Map{
+			"error": error.Error(),
+		})
+	}
+
+	c.Set(fiber.HeaderContentDisposition, "attachment; filename=\""+downloadPath.FileNameWithExt+"\"")
+
+	return c.SendFile(
+		downloadPath.FilePath,
+	)
 }

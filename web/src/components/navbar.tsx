@@ -15,8 +15,15 @@ export default function TopNavbar() {
   return (
     <Navbar maxWidth="full">
       <NavbarBrand>
-        <Link href="/" color="foreground">
-          <p className="font-bold text-inherit">MongoStuff</p>
+        <Link href="/" color="foreground" className="flex gap-1">
+        <Avatar
+            src="/mongostuff.svg"
+            alt="Logo"
+            size="sm"
+          />
+          <p className="font-bold text-inherit text-lg">Mongo
+            <span className="text-primary font-mono">Stuff</span>
+          </p>
         </Link>
       </NavbarBrand>
 

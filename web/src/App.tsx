@@ -10,7 +10,6 @@ const router = createBrowserRouter([
     path: "/",
     element: (
       <>
-        <Toaster />
         <MainTabs />
         <Connections />
       </>
@@ -30,6 +29,7 @@ export default function App() {
   return (
     <>
       <Layout>
+        <Toaster richColors />
         <RouterProvider router={router} />
       </Layout>
     </>

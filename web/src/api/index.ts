@@ -6,17 +6,26 @@ const Config = {
   },
 };
 
+type TOptions = {
+  Blob?: boolean;
+};
+
 export const Get = async <Resp, Err>(
-  endpoint: string
-): Promise<[Resp | null, Err | null]> => {
+  endpoint: string,
+  options?: TOptions
+): Promise<[Resp | null, Err | null, Headers | null]> => {
   const resp = await fetch(`${API}/${endpoint}`, Config);
-  const data = await resp.json();
+
+  const data = options?.Blob ? await resp?.blob() : await resp?.json();
 
   if (!resp.ok) {
-    return [null, data as Err];
+    return [null, data as Err, null];
+  }
+  if (options?.Blob) {
+    return [data as Resp, null, resp.headers];
   }
 
-  return [data as Resp, null];
+  return [data as Resp, null, resp.headers];
 };
 
 export const Post = async <Req, Resp, Err>(
@@ -39,4 +48,58 @@ export const Post = async <Req, Resp, Err>(
 
 export type TErrorResp = {
   error: string;
+};
+
+export const Patch = async <Req, Resp, Err>(
+  endpoint: string,
+  body: Req
+): Promise<[Resp | null, Err | null]> => {
+  const resp = await fetch(`${API}/${endpoint}`, {
+    ...Config,
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+  const data = await resp.json();
+
+  if (!resp.ok) {
+    return [null, data as Err];
+  }
+
+  return [data as Resp, null];
+};
+
+export const Delete = async <Req, Resp, Err>(
+  endpoint: string,
+  body: Req
+): Promise<[Resp | null, Err | null]> => {
+  const resp = await fetch(`${API}/${endpoint}`, {
+    ...Config,
+    method: "DELETE",
+    body: JSON.stringify(body),
+  });
+  const data = await resp.json();
+
+  if (!resp.ok) {
+    return [null, data as Err];
+  }
+
+  return [data as Resp, null];
+};
+
+export const Put = async <Req, Resp, Err>(
+  endpoint: string,
+  body: Req
+): Promise<[Resp | null, Err | null]> => {
+  const resp = await fetch(`${API}/${endpoint}`, {
+    ...Config,
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+  const data = await resp.json();
+
+  if (!resp.ok) {
+    return [null, data as Err];
+  }
+
+  return [data as Resp, null];
 };

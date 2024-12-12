@@ -8,6 +8,7 @@ type Props = {
   getSnapshot: (connectionID: string, snapshotID: string) => void;
   getSnapshots: (connectionID: string) => void;
   clearSnapshot: () => void;
+  setSnapshot: (snapshot: TSnapShot | null) => void;
 };
 export const useSnapshotStore = create<Props>((set) => ({
   snapshot: null,
@@ -15,24 +16,26 @@ export const useSnapshotStore = create<Props>((set) => ({
   getSnapshot: async (connectionID: string, snapshotID: string) => {
     const { snapshot, error } = await SnapShotAPI.GetSnapShotRequest(
       connectionID,
-      snapshotID,
+      snapshotID
     );
     if (error) {
       toast.error(error.error);
       return;
     }
-    toast.success("Snapshot fetched successfully");
     set({ snapshot });
   },
   getSnapshots: async (connectionID: string) => {
-    const { snapshots, error } =
-      await SnapShotAPI.ListSnapShotRequest(connectionID);
+    const { snapshots, error } = await SnapShotAPI.ListSnapShotRequest(
+      connectionID
+    );
     if (error) {
       toast.error(error.error);
       return;
     }
-    toast.success("Snapshots fetched successfully");
     set({ snapshotList: snapshots });
   },
   clearSnapshot: () => set({ snapshot: null }),
+  setSnapshot: (snapshot: TSnapShot | null) => {
+    set({ snapshot });
+  },
 }));
