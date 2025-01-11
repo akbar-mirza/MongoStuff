@@ -32,7 +32,7 @@ export const useSnapshotStore = create<Props>((set) => ({
       toast.error(error.error);
       return;
     }
-    set({ snapshotList: snapshots });
+    set({ snapshotList: snapshots ?? [] });
   },
   clearSnapshot: () => set({ snapshot: null }),
   setSnapshot: (snapshot: TSnapShot | null) => {

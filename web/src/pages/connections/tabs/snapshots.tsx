@@ -1,3 +1,4 @@
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import {
   Button,
   Chip,
@@ -26,6 +27,7 @@ import SnapShotAPI, { TSnapShot } from "../../../api/snapshot";
 import {
   Boxes,
   Camera,
+  DatabaseBackup,
   Download,
   Shrink,
   Terminal,
@@ -33,8 +35,10 @@ import {
 } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
+import EmptyState from "../../../components/emptyState";
 import { useConnectionStore } from "../../../stores/connection.store";
 import { useSnapshotStore } from "../../../stores/snapshot.store";
+import RestoreAPI from '../../../api/restore';
 
 export function TakeSnapshotModal() {
   const { connection } = useConnectionStore();
@@ -58,6 +62,7 @@ export function TakeSnapshotModal() {
     );
     if (error) {
       toast.error("Error Taking Snapshot");
+      setIsLoading(false);
       return;
     }
     if (!snapshot) return;
@@ -161,12 +166,14 @@ export function RenderLogs({ snapshot_id }: { snapshot_id: string }) {
 
   return (
     <>
+      <Tooltip content="View Logs">
       <span
         className="text-lg cursor-pointer active:opacity-50"
         onClick={onOpen}
       >
         <Terminal size={20} />
       </span>
+      </Tooltip>
       <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="5xl" scrollBehavior="inside">
         <ModalContent>
           <ModalHeader className="flex gap-2">
@@ -188,6 +195,118 @@ export function RenderLogs({ snapshot_id }: { snapshot_id: string }) {
               }}
             >
               Close
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+    </>
+  );
+}
+
+export function RestoreSnapshot({ snapshot_id }: { snapshot_id: string }) {
+  const { isOpen, onOpen, onOpenChange, onClose } = useDisclosure();
+
+  const { getSnapshot, setSnapshot, } = useSnapshotStore();
+  const { connection } = useConnectionStore();
+
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleRestore = async () => {
+    setIsLoading(true);
+    const { error } = await RestoreAPI.RestoreSnapshot(
+      connection?.connectionID as string,
+      snapshot_id as string
+    );
+    if (error) {
+      toast.error("Error Restoring Snapshot");
+      setIsLoading(false);
+      return;
+    }
+    toast.success("Snapshot Restored");
+    setIsLoading(false);
+    onClose();
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      console.log("Snapshot ID:");
+      getSnapshot(connection?.connectionID as string, snapshot_id as string);
+    }
+  }, [isOpen, snapshot_id]);
+
+  return (
+    <>
+      <span
+        className="text-lg cursor-pointer active:opacity-50"
+        onClick={onOpen}
+      >
+        <Tooltip content="Restore">
+          <DatabaseBackup size={20} className="text-primary"/>
+        </Tooltip>
+      </span>
+      <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="xl" scrollBehavior="inside">
+        <ModalContent>
+          <ModalHeader className="flex gap-2">
+            <DatabaseBackup size={20} />
+            <p className="text-sm text-bold">Restore</p>
+          </ModalHeader>
+          <ModalBody className="flex flex-col gap-2">
+            {
+              !isLoading && (
+                <div className="">
+                   <p className="text-bold text-lg"> 
+              Are you sure you want to restore this snapshot?
+            </p>
+            <p className="text-sm">
+              This will overwrite the current database with the data from the snapshot.
+            </p>
+                </div>
+              )
+           }
+            
+            {
+              isLoading && (
+                <div className="m-auto flex items-center flex-col gap-2">
+                   <div className="animate-levitate">
+              <DotLottieReact
+                src="https://lottie.host/8f027789-05c4-4553-a9c4-60cc13bdfdce/jCxtRmqwcd.lottie"
+                loop
+                autoplay
+                backgroundColor="transparent"
+                style={{ width: "300px", height: "150px" }}
+              />
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <p className=" text-lg">
+                    Grab a cup of coffee
+                  </p>
+                  <p className="text-sm animate-pulse">
+                    Restoring snapshot....
+                  </p>
+                  </div>
+                </div>
+              )
+            }
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              color="danger"
+              variant="flat"
+              onPress={() => {
+                setSnapshot(null);
+              }}
+            >
+              Close
+            </Button>
+            <Button
+              onPress={() => {
+                handleRestore();
+                setSnapshot(null);
+              }}
+              className="bg-primary-50"
+              isLoading={isLoading}
+            >
+              Restore
             </Button>
           </ModalFooter>
         </ModalContent>
@@ -229,19 +348,18 @@ export default function ConnectionSnapshots() {
     (item: TSnapShot, columnKey: keyof TSnapShot | 'actions') => {
       if (columnKey === 'actions') {
         return (
-          <div className="flex gap-2">
-            <Tooltip content="View Logs">
+          <div className="flex gap-3">
+              <RestoreSnapshot snapshot_id={item.snapshotID} />
               <RenderLogs snapshot_id={item.snapshotID} />
-            </Tooltip>
             <Tooltip content="Download Snapshot">
-              <span className="text-lg cursor-pointer text-primary-50 active:opacity-50">
+              <span className="text-lg cursor-pointer text-sky-500 active:opacity-50 hover:text-sky-600">
                 <Download size={20} onClick={() => {
                   SnapShotAPI.DownloadSnapShotRequest(item.connectionID, item.snapshotID);
                 }}/>
               </span>
             </Tooltip>
             <Tooltip color="danger" content="Delete Snapshot">
-              <span className="text-lg cursor-pointer text-danger active:opacity-50">
+              <span className="text-lg cursor-pointer text-danger active:opacity-50 hover:text-danger">
                 <Trash size={20} />
               </span>
             </Tooltip>
@@ -316,13 +434,13 @@ export default function ConnectionSnapshots() {
   const [page, setPage] = React.useState(1);
   const rowsPerPage = 8;
 
-  const pages = Math.ceil(snapshotList.length / rowsPerPage);
+  const pages = Math.ceil(snapshotList?.length || 0 / rowsPerPage);
 
   const items = React.useMemo(() => {
     const start = (page - 1) * rowsPerPage;
     const end = start + rowsPerPage;
 
-    return snapshotList.slice(start, end);
+    return snapshotList?.slice(start, end);
   }, [page, rowsPerPage, snapshotList]);
 
   return (
@@ -331,7 +449,9 @@ export default function ConnectionSnapshots() {
         <TakeSnapshotModal />
       </div>
       <Spacer y={4} />
-      <Table
+      {
+        snapshotList?.length > 0 && (
+       <Table
         aria-label="Example table with dynamic content"
         bottomContent={
           <div className="flex justify-center w-full">
@@ -368,7 +488,27 @@ export default function ConnectionSnapshots() {
             </TableRow>
           )}
         </TableBody>
-      </Table>
+      </Table>)
+      }
+      {
+        snapshotList?.length === 0 &&( <div>
+            <div className="flex flex-col items-center justify-center h-80">
+              <EmptyState
+                Icon={ <DotLottieReact
+                src="https://lottie.host/281813e4-12ea-4257-a041-69fc069edafe/dQopTPxL06.lottie"
+                loop
+                autoplay
+                backgroundColor="transparent"
+              />}
+                Title="Nothing to see here....."
+              Description="Take a snapshot to get started"
+              TitleClassName="-translate-y-20"
+              DescriptionClassName="-translate-y-20"
+            />
+            
+            </div>
+          </div>)
+    }
     </div>
   );
 }

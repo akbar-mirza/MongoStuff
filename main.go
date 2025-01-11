@@ -53,6 +53,12 @@ func routes(app *fiber.App) {
 	snapshotGroup.Get("/:ConnID", controllers.GetSnapshots)
 	snapshotGroup.Get("/:ConnID/:SnapID", controllers.GetSnapshot)
 	snapshotGroup.Get("/:ConnID/:SnapID/download", controllers.DownloadSnapshot)
+
+	// [Restore Routes]
+	restoreGroup := app.Group("/restore")
+	restoreGroup.Get("/:ConnID", controllers.GetRestores)
+	restoreGroup.Post("/:ConnID/:SnapID", controllers.RestoreSnapshot)
+	restoreGroup.Get("/:ConnID/:RestoreID", controllers.GetRestore)
 }
 
 func main() {

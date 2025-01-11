@@ -13,6 +13,7 @@ const (
 	ConnectionsCollection = "connections"
 	SnapshotsCollection   = "snapshots"
 	UsersCollection       = "users"
+	RestoresCollection    = "restores"
 )
 
 // Replace the placeholder with your Atlas connection string

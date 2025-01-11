@@ -10,6 +10,15 @@ export default {
   theme: {
     extend: {
       colors: {},
+      keyframes: {
+        levitate: {
+          '0%, 100%': { transform: 'translateY(0)' }, // Start and end position
+          '50%': { transform: 'translateY(-10px)' }, // Middle position (levitated)
+        },
+      },
+      animation: {
+        levitate: 'levitate 2s ease-in-out infinite', // Custom animation
+      },
     },
   },
   darkMode: "class",
