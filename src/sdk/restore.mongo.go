@@ -9,8 +9,10 @@ import (
 type MongoRestore struct {
 	URI        string
 	Database   string
+	Collection string
 	BackupPath string
 	IsCompress bool
+	Update     bool
 }
 
 type MongoRestoreResponse struct {
@@ -28,7 +30,15 @@ func Restore(
 	var command = PATH + "mongorestore" + " --uri=" + params.URI
 
 	if params.Database != "" {
-		command += " --db=" + params.Database
+		command += " --nsInclude=" + params.Database
+		if params.Collection != "" {
+			command += "." + params.Collection
+		}
+		command += ".*"
+	}
+
+	if params.Collection != "" {
+		command += " --collection=" + params.Collection
 	}
 
 	if params.IsCompress {
@@ -41,6 +51,11 @@ func Restore(
 		} else {
 			command += " " + params.BackupPath
 		}
+	}
+
+	// For Updating with Snapshot Version
+	if params.Update {
+		command += " --drop"
 	}
 
 	output, err := exec.Command("bash", "-c", command).CombinedOutput()

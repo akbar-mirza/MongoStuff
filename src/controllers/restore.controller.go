@@ -17,6 +17,7 @@ func RestoreSnapshot(
 	type Request struct {
 		Database   string `json:"database"`
 		Collection string `json:"collection"`
+		Update     bool   `json:"update"`
 	}
 
 	body := new(Request)
@@ -38,6 +39,7 @@ func RestoreSnapshot(
 			body.Collection,
 			"",
 		),
+		body.Update,
 	)
 
 	if err != nil {

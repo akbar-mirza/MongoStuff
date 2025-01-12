@@ -29,6 +29,7 @@ import {
   Camera,
   DatabaseBackup,
   Download,
+  Pencil,
   Shrink,
   Terminal,
   Trash
@@ -210,13 +211,15 @@ export function RestoreSnapshot({ snapshot_id }: { snapshot_id: string }) {
   const { connection } = useConnectionStore();
 
   const [isLoading, setIsLoading] = useState(false);
+  const [allowUpdate, setAllowUpdate] = useState(false);
 
   const handleRestore = async () => {
     setIsLoading(true);
-    const { error } = await RestoreAPI.RestoreSnapshot(
-      connection?.connectionID as string,
-      snapshot_id as string
-    );
+    const { error } = await RestoreAPI.RestoreSnapshot({
+      connectionID: connection?.connectionID as string,
+      snapshotID: snapshot_id as string,
+      update: allowUpdate
+    });
     if (error) {
       toast.error("Error Restoring Snapshot");
       setIsLoading(false);
@@ -253,13 +256,31 @@ export function RestoreSnapshot({ snapshot_id }: { snapshot_id: string }) {
           <ModalBody className="flex flex-col gap-2">
             {
               !isLoading && (
-                <div className="">
+                <div className="gap-2 flex flex-col">
                    <p className="text-bold text-lg"> 
               Are you sure you want to restore this snapshot?
             </p>
-            <p className="text-sm">
-              This will overwrite the current database with the data from the snapshot.
-            </p>
+         
+                   <div className="flex items-center justify-between ">
+                  <div className="flex flex-col gap-2">
+                    
+                      <div className="flex gap-2 items-center">
+                        <Pencil size={18} />
+                         <p className="text-md text-bold">
+                        Update Documents
+                      </p>
+                    
+                      </div>
+                        <p className="text-sm text-default-400">
+                        (Update existing documents with the data from the snapshot)
+                      </p>
+                  </div>
+                  <Switch
+                    isSelected={allowUpdate}
+                    onValueChange={setAllowUpdate}
+                    size="sm"
+                  ></Switch>
+                </div>
                 </div>
               )
            }
@@ -293,6 +314,7 @@ export function RestoreSnapshot({ snapshot_id }: { snapshot_id: string }) {
               color="danger"
               variant="flat"
               onPress={() => {
+                onClose();
                 setSnapshot(null);
               }}
             >

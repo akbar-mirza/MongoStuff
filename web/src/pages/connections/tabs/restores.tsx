@@ -1,3 +1,4 @@
+import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import {
   Button,
   Chip,
@@ -22,25 +23,11 @@ import { Terminal } from "lucide-react";
 import React, { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { TRestore } from "../../../api/restore";
+import EmptyState from "../../../components/emptyState";
 import { useConnectionStore } from "../../../stores/connection.store";
 import { useRestoreStore } from "../../../stores/restore.store";
-import EmptyState from "../../../components/emptyState";
-import LazyCat from "../../../icons/lazyCat";
-import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 
-// export default function ConnectionRestores() {
-//   return (
-//     <div>
-//       <div className="flex flex-col items-center justify-center h-96">
-//         <EmptyState
-//           Icon={<LazyCat />}
-//           Title="Good things take time"
-//           Description="But i'm lazy, so it might take a while."
-//         />
-//       </div>
-//     </div>
-//   );
-// }
+
 
 
 export function RenderLogs({ restore_id }: { restore_id: string }) {

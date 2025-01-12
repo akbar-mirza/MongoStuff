@@ -19,6 +19,7 @@ func RestoreSnapshot(
 	snapshotID string,
 	database string,
 	collection string,
+	update bool,
 ) error {
 
 	var Collection = global.GetCollection(global.RestoresCollection)
@@ -37,9 +38,11 @@ func RestoreSnapshot(
 	restoreRes := sdk.Restore(
 		sdk.MongoRestore{
 			URI:        connection.URI,
-			Database:   snapshot.Database,
+			Database:   libs.FallBackString(database, snapshot.Database),
+			Collection: collection,
 			BackupPath: outputFile,
 			IsCompress: snapshot.Compression,
+			Update:     update || false,
 		},
 	)
 

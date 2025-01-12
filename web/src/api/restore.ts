@@ -33,12 +33,14 @@ export const GetRestoreRequest = async (
   return { restore, error };
 };
 
-export const RestoreSnapshot = async (
-  connectionID: string,
-  snapshotID: string,
-  database?: string,
-  collection?: string
-) => {
+export const RestoreSnapshot = async (params: {
+  connectionID: string;
+  snapshotID: string;
+  database?: string;
+  collection?: string;
+  update?: boolean;
+}) => {
+  const { connectionID, snapshotID, database, collection, update } = params;
   const [restore, error] = await Post<
     object,
     TErrorResp,
@@ -49,6 +51,7 @@ export const RestoreSnapshot = async (
   >(`restore/${connectionID}/${snapshotID}`, {
     database,
     collection,
+    update,
   });
   return { restore, error };
 };
