@@ -4,19 +4,30 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "start": "vite dist",
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && NODE_ENV=docker vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@lottiefiles/dotlottie-react": "^0.12.1",
+    "@nextui-org/navbar": "^2.0.37",
     "@nextui-org/react": "^2.4.8",
+    "@nextui-org/system": "^2.2.6",
+    "@nextui-org/table": "^2.0.40",
+    "@nextui-org/theme": "^2.2.11",
     "framer-motion": "^11.11.11",
+    "lucide-react": "^0.456.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0",
+    "sonner": "^1.7.0",
+    "zustand": "^5.0.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",
+    "@types/node": "^22.10.5",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.3",

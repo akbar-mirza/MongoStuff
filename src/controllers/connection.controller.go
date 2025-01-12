@@ -8,13 +8,10 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-
-
 func AddConnection(
 	c *fiber.Ctx,
-) error{
+) error {
 	// Request body
-	
 
 	var params interfaces.Connection
 	if err := c.BodyParser(&params); err != nil {
@@ -24,36 +21,59 @@ func AddConnection(
 		return err
 	}
 
-	services.AddConnection(
-		params,	
+	connection := services.AddConnection(
+		params,
 	)
 
-
-
-
 	return c.JSON(fiber.Map{
-		"message": "Connection added controller",
-		"params": params,
+		"message":    "Connection added controller",
+		"connection": connection,
 	})
-	
+
 }
 
 func GetConnections(
 	c *fiber.Ctx,
-) error{
+) error {
 	connections := services.GetConnections("admin")
 	return c.JSON(fiber.Map{
 		"connections": connections,
 	})
 }
 
+func GetConnection(
+	c *fiber.Ctx,
+) error {
+	ConnID := c.Params("ConnID")
+
+	connection, error := services.GetConnection(ConnID)
+	if error != nil {
+		return c.JSON(fiber.Map{
+			"error": error,
+		})
+	}
+	return c.JSON(connection)
+}
+
 func SyncConnectionDatabases(
 	c *fiber.Ctx,
-) error{
+) error {
 	ConnID := c.Params("ConnID")
 	fmt.Println("Connection ID:", ConnID)
 	Databases := services.SyncConnectionDatabases(ConnID)
 	return c.JSON(fiber.Map{
 		"databases": Databases,
+	})
+}
+
+func GetClusterStatus(
+	c *fiber.Ctx,
+) error {
+	ConnID := c.Params("ConnID")
+	fmt.Println("Connection ID:", ConnID)
+	Status := services.GetClusterStatus(ConnID)
+	// return json response
+	return c.JSON(fiber.Map{
+		"status": Status,
 	})
 }

@@ -8,24 +8,44 @@ export default {
     "./node_modules/@nextui-org/theme/dist/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {},
+      keyframes: {
+        levitate: {
+          '0%, 100%': { transform: 'translateY(0)' }, // Start and end position
+          '50%': { transform: 'translateY(-10px)' }, // Middle position (levitated)
+        },
+      },
+      animation: {
+        levitate: 'levitate 2s ease-in-out infinite', // Custom animation
+      },
+    },
   },
   darkMode: "class",
   plugins: [
     nextui({
       prefix: "nextui", // prefix for themes variables
-      addCommonColors: false, // override common colors (e.g. "blue", "green", "pink").
-      defaultTheme: "light", // default theme from the themes object
-      defaultExtendTheme: "light", // default theme to extend on custom themes
+      addCommonColors: true, // override common colors (e.g. "blue", "green", "pink").
+      defaultTheme: "dark", // default theme from the themes object
+      defaultExtendTheme: "dark", // default theme to extend on custom themes
       layout: {}, // common layout tokens (applied to all themes)
       themes: {
         light: {
           layout: {}, // light theme layout tokens
-          colors: {}, // light theme colors
+          colors: {
+            primary: "#00684a",
+            secondary: "#00ee64",
+          }, // light theme colors
         },
         dark: {
           layout: {}, // dark theme layout tokens
-          colors: {}, // dark theme colors
+          colors: {
+            primary: {
+              DEFAULT: "#02ec64",
+              50: "#00b64f",
+            },
+            secondary: "#13813e",
+          },
         },
         // ... custom themes
       },

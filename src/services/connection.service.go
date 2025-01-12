@@ -2,7 +2,9 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"log"
 	global "mongostuff/src/globals"
 	"mongostuff/src/interfaces"
 	"mongostuff/src/libs"
@@ -12,23 +14,20 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-
-
-
-
 func AddConnection(
 	params interfaces.Connection,
 ) interface{} {
 
-var Collection = global.GetCollection("connections")
+	var Collection = global.GetCollection("connections")
 
 	// parse uri
 	parsedURI := libs.URIParser(params.URI)
 
-
 	if parsedURI.Port == "" {
 		parsedURI.Port = "27017"
 	}
+
+	connectionID := libs.RandomString("conn_", 12)
 
 	var doc = bson.D{
 		{Key: "uri", Value: parsedURI.URI},
@@ -37,10 +36,9 @@ var Collection = global.GetCollection("connections")
 		{Key: "port", Value: parsedURI.Port},
 		{Key: "username", Value: parsedURI.Username},
 		{Key: "password", Value: parsedURI.Password},
-		{Key:"connectionID", Value: libs.RandomString("conn_",12)},
+		{Key: "connectionID", Value: connectionID},
 		{Key: "name", Value: params.Name},
 		{Key: "userID", Value: params.UserID},
-
 	}
 
 	_, err := Collection.InsertOne(
@@ -48,17 +46,15 @@ var Collection = global.GetCollection("connections")
 		doc,
 	)
 
-
-	if(err != nil) {
+	if err != nil {
 		fmt.Println("Error adding connection")
 		fmt.Println(err)
 		return err
 	}
+	SyncConnectionDatabases(connectionID)
 
 	return doc
 }
-
-
 
 func GetConnections(
 	userID string,
@@ -82,6 +78,26 @@ func GetConnections(
 	return connections
 }
 
+func GetConnection(
+	connectionID string,
+) (
+	interfaces.Connection,
+	error,
+) {
+	var Collection = global.GetCollection("connections")
+	var connection interfaces.Connection
+	err := Collection.FindOne(
+		context.TODO(),
+		bson.M{"connectionID": connectionID},
+	).Decode(&connection)
+	if err != nil {
+		fmt.Println("Error getting connection")
+		fmt.Println(err)
+		return connection, err
+	}
+
+	return connection, nil
+}
 
 func ConnectionConnect(
 	URI string,
@@ -96,29 +112,82 @@ func ConnectionConnect(
 		fmt.Println(":: [Connection] :: Error connecting to database")
 		panic(err)
 	}
-	
+
 	return client
-	
+
 }
 
+func getDiskUsage(client *mongo.Client) interface{} {
+	var result map[string]interface{}
+	err := client.Database("admin").RunCommand(context.TODO(), map[string]interface{}{
+		"serverStatus": 1,
+	}).Decode(&result)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Host Info: %v\n", result)
 
-func SyncConnectionDatabases(
+	// parse the result into json
+	jsonResult, err := json.MarshalIndent(result, "", "  ")
+
+	// Extract specific information, e.g., RAM and CPU
+	// if system, ok := result["system"].(map[string]interface{}); ok {
+	// 	if memSizeMB, exists := system["memSizeMB"]; exists {
+	// 		fmt.Printf("Total RAM (MB): %v\n", memSizeMB)
+	// 	}
+	// 	if cpuCount, exists := system["numCores"]; exists {
+	// 		fmt.Printf("CPU Cores: %v\n", cpuCount)
+	// 	}
+	// }
+
+	fmt.Println(string(jsonResult))
+
+	// return json response
+	jsonStr := string(jsonResult)
+	// parse json
+	return jsonStr
+}
+
+func GetURIByConnectionID(
 	connectionID string,
-) interface{} {
+) string {
 	var Collection = global.GetCollection("connections")
 	var connection bson.M
 	err := Collection.FindOne(
 		context.TODO(),
 		bson.M{"connectionID": connectionID},
+		// select only the connectionID field
+		options.FindOne().SetProjection(bson.M{"uri": 1}),
 	).Decode(&connection)
+
 	if err != nil {
 		fmt.Println("Error getting connection")
 		fmt.Println(err)
-		return err
+		return ""
 	}
+	return connection["uri"].(string)
+}
 
-	client := ConnectionConnect(connection["uri"].(string))
-	client.ListDatabaseNames(context.Background(), bson.M{})
+func GetClusterStatus(
+	connectionID string,
+) interface{} {
+	URI := GetURIByConnectionID(connectionID)
+	client := ConnectionConnect(URI)
+	status := getDiskUsage(client)
+	client.Disconnect(context.Background())
+
+	return status
+}
+
+func SyncConnectionDatabases(
+	connectionID string,
+) interface{} {
+
+	var Collection = global.GetCollection("connections")
+	var URI = GetURIByConnectionID(connectionID)
+
+	client := ConnectionConnect(URI)
+
 	databases, err := client.ListDatabaseNames(context.Background(), bson.M{})
 	if err != nil {
 		fmt.Println("Error getting databases")
