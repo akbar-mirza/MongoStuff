@@ -123,15 +123,16 @@ export default function ConnectionRestores() {
         );
       }
       
-      const cellValue = item[columnKey]?.toString() || "";
+      const cellValue = item[columnKey as keyof TRestore]?.toString() || "";
 
       switch (columnKey) {
         case "timestamp":
           return (
             <p className="text-sm capitalize text-bold">
-              {new Date(parseInt(cellValue)).toLocaleDateString() +
+             {new Date(parseInt(cellValue)).toDateString() +
                 " " +
-                new Date(parseInt(cellValue)).toLocaleTimeString()}
+                "(" + new Date(parseInt(cellValue)).toLocaleTimeString() + ")"
+                }
             </p>
           );
         case "duration":
@@ -242,7 +243,7 @@ export default function ConnectionRestores() {
             <TableRow key={item?.restoreID}>
               {(columnKey) => (
                 <TableCell>
-                  {renderCell(item, columnKey as keyof TRestore)}
+                  {renderCell(item as TRestore, columnKey as keyof TRestore)}
                 </TableCell>
               )}
             </TableRow>

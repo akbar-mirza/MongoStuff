@@ -22,12 +22,24 @@ func init() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	slog.SetDefault(logger)
 
+	// if _stuff/snapshots folder doesn't exist, create it
+	if _, err := os.Stat("./_stuff"); os.IsNotExist(err) {
+		err := os.Mkdir("./_stuff", 0755)
+		if err != nil {
+			slog.Error("Error creating _stuff directory", err)
+		}
+		slog.Info("Created _stuff/snapshots directory")
+		err = os.Mkdir("./_stuff/snapshots", 0755)
+		if err != nil {
+			slog.Error("Error creating _stuff directory", err)
+		}
+		slog.Info("Created _stuff/snapshots directory")
+	}
+
 }
 
 func routes(app *fiber.App) {
-	app.Get("/health", func(c *fiber.Ctx) error {
-		return c.SendString("Hello, World!")
-	})
+
 	app.Get("/test", func(c *fiber.Ctx) error {
 		// // Path to the file on the server
 		// filePath := "./test.txt"
@@ -39,8 +51,20 @@ func routes(app *fiber.App) {
 		return controllers.DownloadSnapshot(c)
 	})
 
+	app.Static("/", "./web/dist", fiber.Static{
+		Compress: true,
+	})
+
+	api := app.Group("/api")
+	api.Get("/", func(c *fiber.Ctx) error {
+		return c.SendString("MongoStuff API")
+	})
+	api.Get("/health", func(c *fiber.Ctx) error {
+		return c.SendString("OK")
+	})
+
 	// [Connection Routes]
-	connectionGroup := app.Group("/connection")
+	connectionGroup := api.Group("/connection")
 	connectionGroup.Get("/", controllers.GetConnections)
 	connectionGroup.Get("/:ConnID", controllers.GetConnection)
 	connectionGroup.Post("/", controllers.AddConnection)
@@ -48,14 +72,14 @@ func routes(app *fiber.App) {
 	connectionGroup.Get("/:ConnID/status", controllers.GetClusterStatus)
 
 	// [Snapshot Routes]
-	snapshotGroup := app.Group("/snapshot")
+	snapshotGroup := api.Group("/snapshot")
 	snapshotGroup.Post("/:ConnID", controllers.TakSnapshot)
 	snapshotGroup.Get("/:ConnID", controllers.GetSnapshots)
 	snapshotGroup.Get("/:ConnID/:SnapID", controllers.GetSnapshot)
 	snapshotGroup.Get("/:ConnID/:SnapID/download", controllers.DownloadSnapshot)
 
 	// [Restore Routes]
-	restoreGroup := app.Group("/restore")
+	restoreGroup := api.Group("/restore")
 	restoreGroup.Get("/:ConnID", controllers.GetRestores)
 	restoreGroup.Post("/:ConnID/:SnapID", controllers.RestoreSnapshot)
 	restoreGroup.Get("/:ConnID/:RestoreID", controllers.GetRestore)
@@ -63,9 +87,6 @@ func routes(app *fiber.App) {
 
 func main() {
 	var app = global.App()
-	app.Get("/", func(c *fiber.Ctx) error {
-		return c.SendString("MongoStuff API")
-	})
 	app.Use(cors.New(cors.Config{
 		ExposeHeaders: "Content-Disposition",
 		AllowOrigins:  "*",

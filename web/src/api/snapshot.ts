@@ -10,6 +10,7 @@ export type TSnapShot = {
   logs: string;
   duration: number;
   size: number;
+  compression: boolean;
 };
 
 const ListSnapShotRequest = async (connectionID: string) => {

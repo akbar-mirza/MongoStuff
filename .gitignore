@@ -3,6 +3,7 @@ node_modules
 /dist
 /tmp
 .stuffs
+_stuff
 bin
 .DS_Store
 

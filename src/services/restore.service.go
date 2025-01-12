@@ -31,7 +31,7 @@ func RestoreSnapshot(
 	}
 
 	fileName := snapshotID + "_" + strconv.FormatInt(snapshot.Timestamp, 10)
-	outputFile := ".stuffs/snapshots" + "/" + fileName
+	outputFile := "./_stuff/snapshots" + "/" + fileName
 
 	// Calculate duration
 	startTime := time.Now()

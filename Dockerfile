@@ -1,4 +1,4 @@
-# Stage 1: Build the Go application
+# [Stage 1]: Build the Go application
 FROM golang:bookworm  AS builder
 
 # Set environment variables
@@ -19,14 +19,20 @@ COPY . .
 # Build the application as a statically linked binary
 RUN go build  -o app .
 
-# Stage 2: Create a minimal image for the application
+# [Stage 2]: Build the React application
+FROM node:18-alpine AS react-builder
+WORKDIR /app
+COPY --from=builder /app/web ./web
+WORKDIR /app/web
+RUN rm -rf node_modules package-lock.json && npm cache clean --force &&  npm install
+RUN HOST=docker npm run build
 
+# [Stage 3]: Create a minimal image for the application
 FROM --platform=linux/amd64 debian:bullseye-slim
 
 
 # install curl
 RUN  apt-get update && apt-get install -y curl
-
 
 # install mongodb tools && clean up
 RUN curl https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu1804-x86_64-100.10.0.tgz -o mongodb-tools.tgz \
@@ -34,15 +40,19 @@ RUN curl https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu1804-x
     && mv mongodb-database-tools-ubuntu1804-x86_64-100.10.0/bin /app \
     && rm -rf mongodb-tools.tgz
 
-# # Install multi-arch library
-# RUN apt-get update && apt-get install -y liblzma-dev
+# install gzip
+RUN apt-get install -y gzip
+
 
 # Set working directory
 WORKDIR /app
 
 # Copy the binary from the builder stage
 COPY --from=builder /app/app .
+COPY --from=react-builder /app/web ./web
 COPY ./.env .
+# make dir _stuffs/snapshots
+RUN mkdir -p /app/_stuff/snapshots
 
 
 # Set the default command to run the binary

@@ -75,7 +75,7 @@ export function CreateConnectionModal(props: { RunOnSubmit: () => void }) {
   const handleAddConnection = async () => {
     setIsLoading(true);
 
-    const { connection, error } = await ConnectionAPI.CreateConnectionRequest({
+    const {  error } = await ConnectionAPI.CreateConnectionRequest({
       uri: connectionURI,
       name: connectionName,
       userID: "admin",
@@ -178,6 +178,7 @@ export default function Connections() {
           <ConnectionCard key={index} {...connection} />
         ))}
       </div>
+    
     </div>
   );
 }

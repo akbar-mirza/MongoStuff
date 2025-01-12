@@ -1,5 +1,4 @@
 import EmptyState from "../../../components/emptyState";
-import SittingCat from "../../../icons/sittingCat";
 import StareBackCat from "../../../icons/stareBackCat";
 
 export default function ConnectionSettings() {

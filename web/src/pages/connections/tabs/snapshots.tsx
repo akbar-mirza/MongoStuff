@@ -395,9 +395,10 @@ export default function ConnectionSnapshots() {
         case "timestamp":
           return (
             <p className="text-sm capitalize text-bold">
-              {new Date(parseInt(cellValue)).toLocaleDateString() +
+              {new Date(parseInt(cellValue)).toDateString() +
                 " " +
-                new Date(parseInt(cellValue)).toLocaleTimeString()}
+                "(" + new Date(parseInt(cellValue)).toLocaleTimeString() + ")"
+                }
             </p>
           );
         case "duration":
@@ -411,11 +412,18 @@ export default function ConnectionSnapshots() {
 
         case "size":
           return (
-            <p className="text-sm text-bold">
+            <span className='flex gap-1 items-center'>
+               <p className="text-sm text-bold">
               {parseInt(cellValue) / 1024 > 1024
                 ? (parseInt(cellValue) / 1024 / 1024).toFixed(2) + " mb"
                 : (parseInt(cellValue) / 1024).toFixed(2) + " kb"}
-            </p>
+              </p>
+              {item?.compression && (
+                <Chip size="sm">
+                  gzip
+                </Chip>
+              )}  
+          </span>
           );
         case "status":
           return (

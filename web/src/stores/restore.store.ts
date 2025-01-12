@@ -5,7 +5,7 @@ export const useRestoreStore = create<{
   restore: TRestore | null;
   restoreList: TRestore[];
   getRestore: (connID: string, restoreID: string) => void;
-  setRestore: (restore: TRestore) => void;
+  setRestore: (restore: TRestore | null) => void;
   clearRestore: () => void;
   getRestores: (connID: string) => void;
 }>((set) => ({
@@ -22,7 +22,7 @@ export const useRestoreStore = create<{
     }
     set({ restore });
   },
-  setRestore: (restore: TRestore) => set({ restore }),
+  setRestore: (restore: TRestore | null) => set({ restore }),
   clearRestore: () => set({ restore: null }),
   getRestores: async (connID: string) => {
     const { restores, error } = await RestoreAPI.ListRestoreRequest(connID);

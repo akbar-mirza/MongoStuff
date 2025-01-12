@@ -6,9 +6,6 @@ import {
   Listbox,
   ListboxItem,
 } from "@nextui-org/react";
-import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import ConnectionAPI, { TConnection } from "../../../api/connection";
 import { useConnectionStore } from "../../../stores/connection.store";
 
 export type Props = {

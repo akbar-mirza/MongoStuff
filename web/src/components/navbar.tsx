@@ -1,16 +1,14 @@
 import {
+  Avatar,
+  Dropdown,
+  DropdownItem,
+  DropdownMenu,
+  DropdownTrigger,
+  Link,
   Navbar,
   NavbarBrand,
-  NavbarContent,
-  NavbarItem,
-  Link,
-  DropdownItem,
-  DropdownTrigger,
-  Dropdown,
-  DropdownMenu,
-  Avatar,
+  NavbarContent
 } from "@nextui-org/react";
-import LazyCat from "../icons/lazyCat";
 
 export default function TopNavbar() {
   return (
@@ -26,7 +24,12 @@ export default function TopNavbar() {
             <span className="text-primary font-mono">Stuff</span>
           </p>
         </Link>
+
+   
+ 
+
       </NavbarBrand>
+      
 
       {/* <NavbarContent className="hidden gap-4 sm:flex" justify="center">
         <NavbarItem>
