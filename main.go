@@ -22,18 +22,18 @@ func init() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	slog.SetDefault(logger)
 
-	// if _stuff/snapshots folder doesn't exist, create it
-	if _, err := os.Stat("./_stuff"); os.IsNotExist(err) {
-		err := os.Mkdir("./_stuff", 0755)
+	// if _stuffs/snapshots folder doesn't exist, create it
+	if _, err := os.Stat("./_stuffs"); os.IsNotExist(err) {
+		err := os.Mkdir("./_stuffs", 0755)
 		if err != nil {
-			slog.Error("Error creating _stuff directory", err)
+			slog.Error("Error creating _stuffs directory", err)
 		}
-		slog.Info("Created _stuff/snapshots directory")
-		err = os.Mkdir("./_stuff/snapshots", 0755)
+		slog.Info("Created _stuffs/snapshots directory")
+		err = os.Mkdir("./_stuffs/snapshots", 0755)
 		if err != nil {
-			slog.Error("Error creating _stuff directory", err)
+			slog.Error("Error creating _stuffs directory", err)
 		}
-		slog.Info("Created _stuff/snapshots directory")
+		slog.Info("Created _stuffs/snapshots directory")
 	}
 
 }
@@ -77,6 +77,7 @@ func routes(app *fiber.App) {
 	snapshotGroup.Get("/:ConnID", controllers.GetSnapshots)
 	snapshotGroup.Get("/:ConnID/:SnapID", controllers.GetSnapshot)
 	snapshotGroup.Get("/:ConnID/:SnapID/download", controllers.DownloadSnapshot)
+	snapshotGroup.Patch("/:ConnID/:SnapID/tags", controllers.UpdateSnapshotTags)
 
 	// [Restore Routes]
 	restoreGroup := api.Group("/restore")
