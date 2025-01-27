@@ -10,6 +10,10 @@ export type TConnection = {
   port: string;
   scheme: string;
   uri: string;
+  collections: {
+    database: string;
+    collections: string[];
+  }[];
 };
 const ListConnectionsRequest = async () => {
   const [connections, error] = await Get<
