@@ -37,10 +37,6 @@ func Restore(
 		command += ".*"
 	}
 
-	if params.Collection != "" {
-		command += " --collection=" + params.Collection
-	}
-
 	if params.IsCompress {
 		command += " --gzip" + " --archive=" + params.BackupPath + ".gz"
 	}

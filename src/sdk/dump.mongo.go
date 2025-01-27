@@ -9,6 +9,7 @@ import (
 type MongoDump struct {
 	Database    string
 	URI         string
+	Collection  string
 	OutputDir   string
 	Compression bool
 }
@@ -40,6 +41,17 @@ func Dump(
 	if params.Compression {
 		command += " --archive=" + params.OutputDir + " --gzip"
 	}
+
+	if params.Collection != "" {
+		command += " --collection=" + params.Collection
+	}
+
+	if params.Collection == "" {
+		command += " --numParallelCollections=8"
+	}
+
+	command += " --forceTableScan"
+	// command += " --readPreference=secondary"
 
 	fmt.Println("Command:", command)
 	output, err := exec.Command("bash", "-c", command).CombinedOutput()

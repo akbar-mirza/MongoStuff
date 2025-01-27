@@ -31,7 +31,7 @@ func RestoreSnapshot(
 	}
 
 	fileName := snapshotID + "_" + strconv.FormatInt(snapshot.Timestamp, 10)
-	outputFile := "./_stuff/snapshots" + "/" + fileName
+	outputFile := "./_stuffs/snapshots" + "/" + fileName
 
 	// Calculate duration
 	startTime := time.Now()
@@ -39,7 +39,7 @@ func RestoreSnapshot(
 		sdk.MongoRestore{
 			URI:        connection.URI,
 			Database:   libs.FallBackString(database, snapshot.Database),
-			Collection: collection,
+			Collection: libs.FallBackString(collection, snapshot.Collection),
 			BackupPath: outputFile,
 			IsCompress: snapshot.Compression,
 			Update:     update || false,
@@ -57,31 +57,33 @@ func RestoreSnapshot(
 	}()
 
 	var restoreParams = interfaces.Restore{
-		Timestamp:           time.Now().UnixMilli(),
-		ConnectionID:        connectionID,
-		RestoreConnectionID: connectionID,
-		SnapshotID:          snapshotID,
-		Logs:                libs.FallBackString(restoreRes.ErrorStr, restoreRes.Output),
-		Status:              status,
-		Duration:            duration,
-		Database:            libs.FallBackString(database, snapshot.Database),
-		Collection:          collection,
-		RestoreID:           libs.RandomString("restore_", 12),
+		Timestamp:               time.Now().UnixMilli(),
+		ConnectionID:            connectionID,
+		RestoreConnectionID:     connectionID,
+		SnapshotID:              snapshotID,
+		Logs:                    libs.FallBackString(restoreRes.ErrorStr, restoreRes.Output),
+		Status:                  status,
+		Duration:                duration,
+		Database:                libs.FallBackString(database, snapshot.Database),
+		Collection:              collection,
+		RestoreID:               libs.RandomString("restore_", 12),
+		RestoreToDiffConnection: snapshot.ConnectionID != connectionID,
 	}
 
 	_, err = Collection.InsertOne(
 		context.TODO(),
 		bson.M{
-			"connectionID":        restoreParams.ConnectionID,
-			"restoreConnectionID": restoreParams.RestoreConnectionID,
-			"snapshotID":          restoreParams.SnapshotID,
-			"database":            restoreParams.Database,
-			"collection":          restoreParams.Collection,
-			"timestamp":           restoreParams.Timestamp,
-			"status":              restoreParams.Status,
-			"logs":                restoreParams.Logs,
-			"duration":            restoreParams.Duration,
-			"restoreID":           restoreParams.RestoreID,
+			"connectionID":            restoreParams.ConnectionID,
+			"restoreConnectionID":     restoreParams.RestoreConnectionID,
+			"snapshotID":              restoreParams.SnapshotID,
+			"database":                restoreParams.Database,
+			"collection":              restoreParams.Collection,
+			"timestamp":               restoreParams.Timestamp,
+			"status":                  restoreParams.Status,
+			"logs":                    restoreParams.Logs,
+			"duration":                restoreParams.Duration,
+			"restoreID":               restoreParams.RestoreID,
+			"restoreToDiffConnection": restoreParams.RestoreToDiffConnection,
 		},
 	)
 	if err != nil {

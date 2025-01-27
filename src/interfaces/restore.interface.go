@@ -16,4 +16,6 @@ type Restore struct {
 	// User Controlled
 	Database   string `json:"database"`
 	Collection string `json:"collection"`
+
+	RestoreToDiffConnection bool `json:"restoreToDiffConnection"`
 }
