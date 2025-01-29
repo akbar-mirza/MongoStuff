@@ -17,7 +17,8 @@ import (
 func RestoreSnapshot(
 	connectionID string,
 	snapshotID string,
-	database string,
+	sourceDatabase string,
+	targetDatabase string,
 	collection string,
 	update bool,
 ) error {
@@ -37,12 +38,13 @@ func RestoreSnapshot(
 	startTime := time.Now()
 	restoreRes := sdk.Restore(
 		sdk.MongoRestore{
-			URI:        connection.URI,
-			Database:   libs.FallBackString(database, snapshot.Database),
-			Collection: libs.FallBackString(collection, snapshot.Collection),
-			BackupPath: outputFile,
-			IsCompress: snapshot.Compression,
-			Update:     update || false,
+			URI:            connection.URI,
+			SourceDatabase: libs.FallBackString(sourceDatabase, snapshot.Database),
+			TargetDatabase: libs.FallBackString(targetDatabase, ""),
+			Collection:     libs.FallBackString(collection, snapshot.Collection),
+			BackupPath:     outputFile,
+			IsCompress:     snapshot.Compression,
+			Update:         update || false,
 		},
 	)
 
@@ -64,7 +66,8 @@ func RestoreSnapshot(
 		Logs:                    libs.FallBackString(restoreRes.ErrorStr, restoreRes.Output),
 		Status:                  status,
 		Duration:                duration,
-		Database:                libs.FallBackString(database, snapshot.Database),
+		Database:                libs.FallBackString(sourceDatabase, snapshot.Database),
+		TargetDatabase:          targetDatabase,
 		Collection:              collection,
 		RestoreID:               libs.RandomString("restore_", 12),
 		RestoreToDiffConnection: snapshot.ConnectionID != connectionID,
@@ -77,6 +80,7 @@ func RestoreSnapshot(
 			"restoreConnectionID":     restoreParams.RestoreConnectionID,
 			"snapshotID":              restoreParams.SnapshotID,
 			"database":                restoreParams.Database,
+			"targetDatabase":          restoreParams.TargetDatabase,
 			"collection":              restoreParams.Collection,
 			"timestamp":               restoreParams.Timestamp,
 			"status":                  restoreParams.Status,
