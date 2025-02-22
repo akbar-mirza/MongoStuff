@@ -1,13 +1,18 @@
-import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import {
   Button,
   Chip,
+  Divider,
+  Input,
   Modal,
   ModalBody,
   ModalContent,
   ModalFooter,
   ModalHeader,
   Pagination,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   Select,
   SelectItem,
   Spacer,
@@ -19,27 +24,30 @@ import {
   TableHeader,
   TableRow,
   Tooltip,
-  useDisclosure
+  useDisclosure,
 } from "@nextui-org/react";
 import React, { useEffect, useState } from "react";
 import SnapShotAPI, { TSnapShot } from "../../../api/snapshot";
 
 import {
   Boxes,
+  Cable,
   Camera,
   DatabaseBackup,
   Download,
+  Hammer,
   Pencil,
   Shrink,
+  Tags,
   Terminal,
-  Trash
+  Trash,
 } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
+import RestoreAPI from "../../../api/restore";
 import EmptyState from "../../../components/emptyState";
 import { useConnectionStore } from "../../../stores/connection.store";
 import { useSnapshotStore } from "../../../stores/snapshot.store";
-import RestoreAPI from '../../../api/restore';
 
 export function TakeSnapshotModal() {
   const { connection } = useConnectionStore();
@@ -47,6 +55,7 @@ export function TakeSnapshotModal() {
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const [isLoading, setIsLoading] = useState(false);
   const [database, setDatabase] = useState("");
+  const [collection, setCollection] = useState("");
   const [isCluster, setIsCluster] = useState(false);
   const [compressSnapshot, setCompressSnapshot] = useState(true);
 
@@ -57,6 +66,7 @@ export function TakeSnapshotModal() {
       {
         ...(!isCluster && {
           database,
+          collection,
         }),
         compression: compressSnapshot,
       }
@@ -115,6 +125,21 @@ export function TakeSnapshotModal() {
                     ))}
                   </Select>
                 </div>
+                <div className="flex items-center">
+                  <Select
+                    label="Select Collection"
+                    isDisabled={isCluster}
+                    onChange={(e) => setCollection(e.target.value)}
+                  >
+                    {(
+                      connection?.collections?.find(
+                        (collection) => collection.database === database
+                      )?.collections || []
+                    )?.map((collection) => (
+                      <SelectItem key={collection}>{collection}</SelectItem>
+                    ))}
+                  </Select>
+                </div>
 
                 <div className="flex items-center justify-between ">
                   <div className="flex gap-2">
@@ -168,14 +193,19 @@ export function RenderLogs({ snapshot_id }: { snapshot_id: string }) {
   return (
     <>
       <Tooltip content="View Logs">
-      <span
-        className="text-lg cursor-pointer active:opacity-50"
-        onClick={onOpen}
-      >
-        <Terminal size={20} />
-      </span>
+        <span
+          className="text-lg cursor-pointer active:opacity-50"
+          onClick={onOpen}
+        >
+          <Terminal size={20} />
+        </span>
       </Tooltip>
-      <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="5xl" scrollBehavior="inside">
+      <Modal
+        isOpen={isOpen}
+        onOpenChange={onOpenChange}
+        size="5xl"
+        scrollBehavior="inside"
+      >
         <ModalContent>
           <ModalHeader className="flex gap-2">
             <Terminal size={20} />
@@ -207,18 +237,21 @@ export function RenderLogs({ snapshot_id }: { snapshot_id: string }) {
 export function RestoreSnapshot({ snapshot_id }: { snapshot_id: string }) {
   const { isOpen, onOpen, onOpenChange, onClose } = useDisclosure();
 
-  const { getSnapshot, setSnapshot, } = useSnapshotStore();
-  const { connection } = useConnectionStore();
+  const { setSnapshot, snapshot } = useSnapshotStore();
+  const { connection, connectionList } = useConnectionStore();
 
   const [isLoading, setIsLoading] = useState(false);
   const [allowUpdate, setAllowUpdate] = useState(false);
+  const [selectConnection, setSelectConnection] = useState<string | null>(null);
+  const [database, setDatabase] = useState("");
 
   const handleRestore = async () => {
     setIsLoading(true);
     const { error } = await RestoreAPI.RestoreSnapshot({
-      connectionID: connection?.connectionID as string,
+      connectionID: selectConnection ?? (connection?.connectionID as string),
       snapshotID: snapshot_id as string,
-      update: allowUpdate
+      update: allowUpdate,
+      database,
     });
     if (error) {
       toast.error("Error Restoring Snapshot");
@@ -230,50 +263,40 @@ export function RestoreSnapshot({ snapshot_id }: { snapshot_id: string }) {
     onClose();
   };
 
-  useEffect(() => {
-    if (isOpen) {
-      console.log("Snapshot ID:");
-      getSnapshot(connection?.connectionID as string, snapshot_id as string);
-    }
-  }, [isOpen, snapshot_id]);
-
   return (
     <>
-      <span
-        className="text-lg cursor-pointer active:opacity-50"
-        onClick={onOpen}
-      >
+      <span className="cursor-pointer active:opacity-50" onClick={onOpen}>
         <Tooltip content="Restore">
-          <DatabaseBackup size={20} className="text-primary"/>
+          <DatabaseBackup size={20} className="text-primary" />
         </Tooltip>
       </span>
-      <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="xl" scrollBehavior="inside">
+      <Modal
+        isOpen={isOpen}
+        onOpenChange={onOpenChange}
+        size="xl"
+        scrollBehavior="inside"
+      >
         <ModalContent>
           <ModalHeader className="flex gap-2">
             <DatabaseBackup size={20} />
             <p className="text-sm text-bold">Restore</p>
           </ModalHeader>
           <ModalBody className="flex flex-col gap-2">
-            {
-              !isLoading && (
-                <div className="gap-2 flex flex-col">
-                   <p className="text-bold text-lg"> 
-              Are you sure you want to restore this snapshot?
-            </p>
-         
-                   <div className="flex items-center justify-between ">
+            {!isLoading && (
+              <div className="gap-4 flex flex-col">
+                <p className="text-bold text-lg">
+                  Are you sure you want to restore this snapshot?
+                </p>
+
+                <div className="flex items-center justify-between ">
                   <div className="flex flex-col gap-2">
-                    
-                      <div className="flex gap-2 items-center">
-                        <Pencil size={18} />
-                         <p className="text-md text-bold">
-                        Update Documents
-                      </p>
-                    
-                      </div>
-                        <p className="text-sm text-default-400">
-                        (Update existing documents with the data from the snapshot)
-                      </p>
+                    <div className="flex gap-2 items-center">
+                      <Pencil size={18} />
+                      <p className="text-md text-bold">Update Documents</p>
+                    </div>
+                    <p className="text-sm text-default-400">
+                      Update existing documents with the data from the snapshot
+                    </p>
                   </div>
                   <Switch
                     isSelected={allowUpdate}
@@ -281,33 +304,74 @@ export function RestoreSnapshot({ snapshot_id }: { snapshot_id: string }) {
                     size="sm"
                   ></Switch>
                 </div>
+
+                <Divider className="mt-4" />
+                <div className="flex items-center justify-center text-primary gap-2">
+                  <Hammer size={20} />
+                  <h1 className="text-lg">Advance Toolings</h1>
                 </div>
-              )
-           }
-            
-            {
-              isLoading && (
-                <div className="m-auto flex items-center flex-col gap-2">
-                   <div className="animate-levitate">
-              <DotLottieReact
-                src="https://lottie.host/8f027789-05c4-4553-a9c4-60cc13bdfdce/jCxtRmqwcd.lottie"
-                loop
-                autoplay
-                backgroundColor="transparent"
-                style={{ width: "300px", height: "150px" }}
-              />
+                <div className="flex items-center justify-between ">
+                  <div className="flex flex-col gap-2">
+                    <div className="flex gap-2 items-center">
+                      <Cable size={18} />
+                      <p className="text-md text-bold">Restore To Connection</p>
+                    </div>
+                    <p className="text-sm text-default-400">
+                      Restore snapshot to different cluster
+                    </p>
                   </div>
-                  <div className="flex flex-col items-center">
-                    <p className=" text-lg">
-                    Grab a cup of coffee
-                  </p>
+                </div>
+                <Select
+                  label="Select Connection"
+                  onChange={(e) => setSelectConnection(e.target.value)}
+                >
+                  {(
+                    connectionList.filter(
+                      (conn) => conn.connectionID !== connection?.connectionID
+                    ) || []
+                  ).map((connection) => (
+                    <SelectItem key={connection.connectionID}>
+                      {connection.name}
+                    </SelectItem>
+                  ))}
+                </Select>
+
+                <Select
+                  label="Select DB"
+                  isDisabled={snapshot?.isClusterSnapshot}
+                  onChange={(e) => setDatabase(e.target.value)}
+                >
+                  {(
+                    connectionList.find(
+                      (connection) =>
+                        connection.connectionID === selectConnection
+                    )?.databases || []
+                  )?.map((db) => (
+                    <SelectItem key={db}>{db}</SelectItem>
+                  ))}
+                </Select>
+              </div>
+            )}
+
+            {isLoading && (
+              <div className="m-auto flex items-center flex-col gap-2">
+                <div className="animate-levitate">
+                  <DotLottieReact
+                    src="https://lottie.host/8f027789-05c4-4553-a9c4-60cc13bdfdce/jCxtRmqwcd.lottie"
+                    loop
+                    autoplay
+                    backgroundColor="transparent"
+                    style={{ width: "300px", height: "150px" }}
+                  />
+                </div>
+                <div className="flex flex-col items-center">
+                  <p className=" text-lg">Grab a cup of coffee</p>
                   <p className="text-sm animate-pulse">
                     Restoring snapshot....
                   </p>
-                  </div>
                 </div>
-              )
-            }
+              </div>
+            )}
           </ModalBody>
           <ModalFooter>
             <Button
@@ -337,6 +401,96 @@ export function RestoreSnapshot({ snapshot_id }: { snapshot_id: string }) {
   );
 }
 
+export function EditSnapshotTags({ snapshot_id }: { snapshot_id: string }) {
+  const { findSnapshot, getSnapshots } = useSnapshotStore();
+  const { connection } = useConnectionStore();
+  const [isLoading, setIsLoading] = useState(false);
+  const [tags, setTags] = useState<string[]>(
+    findSnapshot(snapshot_id)?.tags ?? []
+  );
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [tag, setTag] = useState("");
+
+  const handleUpdateTags = async () => {
+    setIsLoading(true);
+    const { error } = await SnapShotAPI.UpdateSnapshotTagsRequest(
+      connection?.connectionID as string,
+      snapshot_id as string,
+      tags
+    );
+    if (error) {
+      toast.error("Error Updating Tags");
+      setIsLoading(false);
+      return;
+    }
+    toast.success("Tags Updated");
+    setIsLoading(false);
+    getSnapshots(connection?.connectionID as string);
+    setIsOpen(false);
+  };
+
+  return (
+    <>
+      <Popover
+        showArrow
+        offset={10}
+        isOpen={isOpen}
+        onOpenChange={(open) => setIsOpen(open)}
+        backdrop="opaque"
+      >
+        <PopoverTrigger>
+          <span className="text-lg cursor-pointer active:opacity-50">
+            <Tooltip content="Edit Tags">
+              <Tags size={20} className="text-violet-400" />
+            </Tooltip>
+          </span>
+        </PopoverTrigger>
+        <PopoverContent className="flex gap-2 p-4 flex-col">
+          <div className="flex gap-2 items-center max-w-92">
+            <Input
+              label="Tags"
+              value={tag}
+              onChange={(e) => {
+                setTag(e.target.value);
+              }}
+              // on enter add tag
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  setTags([...tags, tag]);
+                  setTag("");
+                }
+              }}
+            />
+            <Button
+              onPress={() => {
+                setTags([...tags, tag]);
+                setTag("");
+                handleUpdateTags();
+              }}
+              isLoading={isLoading}
+              className="bg-primary-50"
+              size="md"
+            >
+              Save
+            </Button>
+          </div>
+          <div className="flex gap-2 flex-wrap max-w-sm">
+            {tags?.map((tag) => (
+              <Chip
+                onClose={() => {
+                  setTags(tags.filter((t) => t !== tag));
+                }}
+              >
+                {tag}
+              </Chip>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+    </>
+  );
+}
+
 export type Props = {
   ConnectionID: string;
 };
@@ -348,8 +502,8 @@ export default function ConnectionSnapshots() {
     key: string;
     label: string;
   }[] = [
-    { key: "snapshotID", label: "Snapshot ID" },
-    { key: "database", label: "Database" },
+    { key: "snapshotID", label: "Snapshot" },
+    { key: "scope", label: "Scope" },
     { key: "timestamp", label: "Timestamp" },
     { key: "status", label: "Status" },
     { key: "duration", label: "Duration" },
@@ -367,19 +521,26 @@ export default function ConnectionSnapshots() {
   };
 
   const renderCell = React.useCallback(
-    (item: TSnapShot, columnKey: keyof TSnapShot | 'actions') => {
-      if (columnKey === 'actions') {
+    (item: TSnapShot, columnKey: keyof TSnapShot | "actions" | "scope") => {
+      if (columnKey === "actions") {
         return (
           <div className="flex gap-3">
-              <RestoreSnapshot snapshot_id={item.snapshotID} />
-              <RenderLogs snapshot_id={item.snapshotID} />
+            <RestoreSnapshot snapshot_id={item.snapshotID} />
+            <RenderLogs snapshot_id={item.snapshotID} />
             <Tooltip content="Download Snapshot">
               <span className="text-lg cursor-pointer text-sky-500 active:opacity-50 hover:text-sky-600">
-                <Download size={20} onClick={() => {
-                  SnapShotAPI.DownloadSnapShotRequest(item.connectionID, item.snapshotID);
-                }}/>
+                <Download
+                  size={20}
+                  onClick={() => {
+                    SnapShotAPI.DownloadSnapShotRequest(
+                      item.connectionID,
+                      item.snapshotID
+                    );
+                  }}
+                />
               </span>
             </Tooltip>
+            <EditSnapshotTags snapshot_id={item.snapshotID} />
             <Tooltip color="danger" content="Delete Snapshot">
               <span className="text-lg cursor-pointer text-danger active:opacity-50 hover:text-danger">
                 <Trash size={20} />
@@ -388,8 +549,8 @@ export default function ConnectionSnapshots() {
           </div>
         );
       }
-      
-      const cellValue = item[columnKey]?.toString() || "";
+
+      const cellValue = item[columnKey as keyof TSnapShot]?.toString() || "";
 
       switch (columnKey) {
         case "timestamp":
@@ -397,8 +558,9 @@ export default function ConnectionSnapshots() {
             <p className="text-sm capitalize text-bold">
               {new Date(parseInt(cellValue)).toDateString() +
                 " " +
-                "(" + new Date(parseInt(cellValue)).toLocaleTimeString() + ")"
-                }
+                "(" +
+                new Date(parseInt(cellValue)).toLocaleTimeString() +
+                ")"}
             </p>
           );
         case "duration":
@@ -412,18 +574,14 @@ export default function ConnectionSnapshots() {
 
         case "size":
           return (
-            <span className='flex gap-1 items-center'>
-               <p className="text-sm text-bold">
-              {parseInt(cellValue) / 1024 > 1024
-                ? (parseInt(cellValue) / 1024 / 1024).toFixed(2) + " mb"
-                : (parseInt(cellValue) / 1024).toFixed(2) + " kb"}
+            <span className="flex gap-1 items-center">
+              <p className="text-sm text-bold">
+                {parseInt(cellValue) / 1024 > 1024
+                  ? (parseInt(cellValue) / 1024 / 1024).toFixed(2) + " mb"
+                  : (parseInt(cellValue) / 1024).toFixed(2) + " kb"}
               </p>
-              {item?.compression && (
-                <Chip size="sm">
-                  gzip
-                </Chip>
-              )}  
-          </span>
+              {item?.compression && <Chip size="sm">gzip</Chip>}
+            </span>
           );
         case "status":
           return (
@@ -439,20 +597,49 @@ export default function ConnectionSnapshots() {
 
         case "snapshotID":
           return (
-            <Chip size="sm" variant="solid">
-              {cellValue}
-            </Chip>
+            <span className="flex gap-1 items-center flex-wrap">
+              <Chip size="sm" variant="solid">
+                {cellValue}
+              </Chip>
+              {item?.tags?.length
+                ? item.tags.map((tag) => (
+                    <Tooltip content="Tags">
+                      <Chip
+                        size="sm"
+                        variant="flat"
+                        className="capitalize text-violet-400"
+                      >
+                        {tag}
+                      </Chip>
+                    </Tooltip>
+                  ))
+                : null}
+            </span>
           );
 
-        case "database":
+        case "scope":
           return (
-            <Chip
-              className="capitalize"
-              size="sm"
-              variant={cellValue?.length ? "flat" : "dot"}
-            >
-              {cellValue?.length ? cellValue : "Cluster"}
-            </Chip>
+            <span className="flex gap-1 items-center">
+              <Chip
+                className="capitalize"
+                size="sm"
+                variant={cellValue?.length ? "flat" : "dot"}
+              >
+                {cellValue?.length ? cellValue : "Cluster"}
+              </Chip>
+              {item?.collection?.length ? (
+                <Tooltip content="Collection">
+                  <Chip
+                    size="sm"
+                    variant="flat"
+                    color="success"
+                    className="capitalize"
+                  >
+                    {item?.collection?.length && item?.collection}
+                  </Chip>
+                </Tooltip>
+              ) : null}
+            </span>
           );
         default:
           return cellValue;
@@ -479,66 +666,69 @@ export default function ConnectionSnapshots() {
         <TakeSnapshotModal />
       </div>
       <Spacer y={4} />
-      {
-        snapshotList?.length > 0 && (
-       <Table
-        aria-label="Example table with dynamic content"
-        bottomContent={
-          <div className="flex justify-center w-full">
-            <Pagination
-              isCompact
-              showControls
-              showShadow
-              color="default"
-              page={page}
-              total={pages}
-              onChange={(page) => setPage(page)}
-            />
-          </div>
-        }
-      >
-        <TableHeader columns={columns}>
-          {(column) => (
-            <TableColumn key={column.key}>{column.label}</TableColumn>
-          )}
-        </TableHeader>
-        <TableBody
-          items={
-            items.map((item) => ({
-              ...item,
-              actions: "",
-            })) || []
+      {snapshotList?.length > 0 && (
+        <Table
+          aria-label="Example table with dynamic content"
+          bottomContent={
+            <div className="flex justify-center w-full">
+              <Pagination
+                isCompact
+                showControls
+                showShadow
+                color="default"
+                page={page}
+                total={pages}
+                onChange={(page) => setPage(page)}
+              />
+            </div>
           }
         >
-          {(item) => (
-            <TableRow key={item?.snapshotID}>
-              {(columnKey) => (
-                <TableCell>{renderCell(item, columnKey as keyof TSnapShot)}</TableCell>
-              )}
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>)
-      }
-      {
-        snapshotList?.length === 0 &&( <div>
-            <div className="flex flex-col items-center justify-center h-80">
-              <EmptyState
-                Icon={ <DotLottieReact
-                src="https://lottie.host/281813e4-12ea-4257-a041-69fc069edafe/dQopTPxL06.lottie"
-                loop
-                autoplay
-                backgroundColor="transparent"
-              />}
-                Title="Nothing to see here....."
+          <TableHeader columns={columns}>
+            {(column) => (
+              <TableColumn key={column.key}>{column.label}</TableColumn>
+            )}
+          </TableHeader>
+          <TableBody
+            items={
+              items.map((item) => ({
+                ...item,
+                actions: "",
+                scope: item?.database?.length ? item?.database : null,
+              })) || []
+            }
+          >
+            {(item) => (
+              <TableRow key={item?.snapshotID}>
+                {(columnKey) => (
+                  <TableCell>
+                    {renderCell(item, columnKey as keyof TSnapShot)}
+                  </TableCell>
+                )}
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      )}
+      {snapshotList?.length === 0 && (
+        <div>
+          <div className="flex flex-col items-center justify-center h-80">
+            <EmptyState
+              Icon={
+                <DotLottieReact
+                  src="https://lottie.host/281813e4-12ea-4257-a041-69fc069edafe/dQopTPxL06.lottie"
+                  loop
+                  autoplay
+                  backgroundColor="transparent"
+                />
+              }
+              Title="Nothing to see here....."
               Description="Take a snapshot to get started"
               TitleClassName="-translate-y-20"
               DescriptionClassName="-translate-y-20"
             />
-            
-            </div>
-          </div>)
-    }
+          </div>
+        </div>
+      )}
     </div>
   );
 }

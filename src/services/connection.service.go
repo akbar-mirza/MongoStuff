@@ -23,6 +23,7 @@ func AddConnection(
 	// parse uri
 	parsedURI := libs.URIParser(params.URI)
 
+
 	if parsedURI.Port == "" {
 		parsedURI.Port = "27017"
 	}
@@ -189,6 +190,26 @@ func SyncConnectionDatabases(
 	client := ConnectionConnect(URI)
 
 	databases, err := client.ListDatabaseNames(context.Background(), bson.M{})
+
+	type DBCollection struct {
+		Database    string
+		Collections []string
+	}
+	dbCollections := []DBCollection{}
+
+	for _, database := range databases {
+		collections, err := client.Database(database).ListCollectionNames(context.Background(), bson.M{})
+		if err != nil {
+			fmt.Println("Error getting collections")
+			fmt.Println(err)
+			return err
+		}
+		dbCollections = append(dbCollections, struct {
+			Database    string
+			Collections []string
+		}{database, collections})
+	}
+
 	if err != nil {
 		fmt.Println("Error getting databases")
 		fmt.Println(err)
@@ -202,6 +223,7 @@ func SyncConnectionDatabases(
 		bson.D{
 			{Key: "$set", Value: bson.D{
 				{Key: "databases", Value: databases},
+				{Key: "collections", Value: dbCollections},
 			}},
 		},
 	)

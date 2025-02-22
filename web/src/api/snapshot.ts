@@ -1,16 +1,18 @@
-import { Get, Post, TErrorResp } from ".";
+import { Get, Patch, Post, TErrorResp } from ".";
 
 export type TSnapShot = {
   connectionID: string;
   isClusterSnapshot: boolean;
   snapshotID: string;
   database: string;
+  collection: string;
   timestamp: number;
   status: string;
   logs: string;
   duration: number;
   size: number;
   compression: boolean;
+  tags?: string[];
 };
 
 const ListSnapShotRequest = async (connectionID: string) => {
@@ -34,12 +36,14 @@ const TakeSnapShotRequest = async (
   connectionID: string,
   params?: {
     database?: string;
+    collection?: string;
     compression?: boolean;
   }
 ) => {
   const [snapshot, error] = await Post<
     {
       database?: string;
+      collection?: string;
       compression?: boolean;
     },
     {
@@ -50,6 +54,7 @@ const TakeSnapShotRequest = async (
   >(`snapshot/${connectionID}/`, {
     database: params?.database,
     compression: params?.compression,
+    collection: params?.collection,
   });
   return { snapshot: snapshot?.snapshot, error };
 };
@@ -80,11 +85,32 @@ const DownloadSnapShotRequest = async (
   return { snapshot, error };
 };
 
+const UpdateSnapshotTagsRequest = async (
+  connectionID: string,
+  snapshotID: string,
+  tags: string[]
+) => {
+  const [snapshot, error] = await Patch<
+    {
+      tags: string[];
+    },
+    {
+      message: string;
+      snapshot: TSnapShot;
+    },
+    TErrorResp
+  >(`snapshot/${connectionID}/${snapshotID}/tags`, {
+    tags,
+  });
+  return { snapshot: snapshot?.snapshot, error };
+};
+
 const SnapShotAPI = {
   ListSnapShotRequest,
   GetSnapShotRequest,
   TakeSnapShotRequest,
   DownloadSnapShotRequest,
+  UpdateSnapshotTagsRequest,
 };
 
 export default SnapShotAPI;

@@ -31,6 +31,7 @@ func RestoreSnapshot(
 	err := services.RestoreSnapshot(
 		connID,
 		snapID,
+		"",
 		libs.FallBackString(
 			body.Database,
 			"",

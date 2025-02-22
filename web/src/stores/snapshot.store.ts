@@ -9,6 +9,7 @@ type Props = {
   getSnapshots: (connectionID: string) => void;
   clearSnapshot: () => void;
   setSnapshot: (snapshot: TSnapShot | null) => void;
+  findSnapshot: (snapshotID: string) => TSnapShot | undefined;
 };
 export const useSnapshotStore = create<Props>((set) => ({
   snapshot: null,
@@ -23,6 +24,13 @@ export const useSnapshotStore = create<Props>((set) => ({
       return;
     }
     set({ snapshot });
+  },
+  findSnapshot: (snapshotID: string): TSnapShot | undefined => {
+    return (
+      useSnapshotStore
+        .getState()
+        .snapshotList.find((s) => s.snapshotID === snapshotID) ?? undefined
+    );
   },
   getSnapshots: async (connectionID: string) => {
     const { snapshots, error } = await SnapShotAPI.ListSnapShotRequest(

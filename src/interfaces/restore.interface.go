@@ -14,6 +14,9 @@ type Restore struct {
 	Duration            int64       `json:"duration"`
 	RestoreID           string      `json:"restoreID"`
 	// User Controlled
-	Database   string `json:"database"`
-	Collection string `json:"collection"`
+	Database       string `json:"database"`       // source database
+	TargetDatabase string `json:"targetDatabase"` // restore database is connection is different
+	Collection     string `json:"collection"`
+
+	RestoreToDiffConnection bool `json:"restoreToDiffConnection"`
 }

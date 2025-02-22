@@ -14,15 +14,18 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func TakSnapshot(
-	connectionID string,
-	databaseName string,
-	compression bool,
-) (interfaces.Snapshot, error) {
+type TakSnapshotParams struct {
+	ConnectionID string
+	Database     string
+	Collection   string
+	Compression  bool
+}
+
+func TakSnapshot(params TakSnapshotParams) (interfaces.Snapshot, error) {
 	var Collection = global.GetCollection(global.SnapshotsCollection)
 
 	connection, err := GetConnection(
-		connectionID,
+		params.ConnectionID,
 	)
 	if err != nil {
 		return interfaces.Snapshot{}, err
@@ -34,7 +37,9 @@ func TakSnapshot(
 	fmt.Println("Snapshot ID:", snapshotID)
 	outputFile := "./_stuffs/snapshots" + "/" + snapshotID + "_" + unixString
 
-	if compression {
+	// resolve path for windows support
+
+	if params.Compression {
 		outputFile += ".gz"
 	}
 
@@ -43,9 +48,10 @@ func TakSnapshot(
 	dumpRes := sdk.Dump(
 		sdk.MongoDump{
 			URI:         connection.URI,
-			Database:    databaseName,
+			Database:    params.Database,
+			Collection:  params.Collection,
 			OutputDir:   outputFile,
-			Compression: compression,
+			Compression: params.Compression,
 		},
 	)
 
@@ -60,10 +66,11 @@ func TakSnapshot(
 		return "Success"
 	}()
 
-	var isClusterSnapshot = libs.If(databaseName == "", true, false)
+	var isClusterSnapshot = libs.If(params.Database == "", true, false)
 
 	var size int64 = 0
 	if status != "Failed" {
+		fmt.Println("Calculating directory size", outputFile)
 		dirSize, err := libs.CalDirSize(outputFile)
 		if err != nil {
 			fmt.Println("Error calculating directory size")
@@ -73,16 +80,17 @@ func TakSnapshot(
 	}
 
 	var snapShotParams = interfaces.Snapshot{
-		ConnectionID:      connectionID,
+		ConnectionID:      params.ConnectionID,
 		IsClusterSnapshot: isClusterSnapshot,
 		SnapshotID:        snapshotID,
-		Database:          databaseName,
+		Database:          params.Database,
+		Collection:        params.Collection,
 		Timestamp:         timeStamp,
 		Status:            status,
 		Logs:              libs.FallBackString(dumpRes.ErrorStr, dumpRes.Output),
 		Duration:          duration.Milliseconds(), // Duration in milliseconds
 		Size:              size,                    // Size in bytes
-		Compression:       compression,
+		Compression:       params.Compression,
 	}
 
 	_, err = Collection.InsertOne(
@@ -92,6 +100,7 @@ func TakSnapshot(
 			"isClusterSnapshot": snapShotParams.IsClusterSnapshot,
 			"snapshotID":        snapShotParams.SnapshotID,
 			"database":          snapShotParams.Database,
+			"collection":        snapShotParams.Collection,
 			"timestamp":         snapShotParams.Timestamp,
 			"status":            snapShotParams.Status,
 			"logs":              snapShotParams.Logs,
@@ -178,7 +187,7 @@ func DownloadSnapshot(
 		}, err
 	}
 	fileName := snapshotID + "_" + strconv.FormatInt(snapshot.Timestamp, 10)
-	outputFile := "./_stuff/snapshots" + "/" + fileName
+	outputFile := "./_stuffs/snapshots" + "/" + fileName
 
 	ext := ""
 	if snapshot.Compression {
@@ -192,4 +201,27 @@ func DownloadSnapshot(
 		FileExt:         ext,
 		FileNameWithExt: fileName + ext,
 	}, nil
+}
+
+func UpdateSnapshotTags(
+	snapshotID string,
+	tags []string,
+) (
+	interfaces.Snapshot,
+	error,
+) {
+	var Collection = global.GetCollection(global.SnapshotsCollection)
+	var snapshot interfaces.Snapshot
+	err := Collection.FindOneAndUpdate(
+		context.TODO(),
+		bson.M{"snapshotID": snapshotID},
+		bson.M{"$set": bson.M{"tags": tags}},
+		options.FindOneAndUpdate().SetReturnDocument(options.After),
+	).Decode(&snapshot)
+	if err != nil {
+		fmt.Println("Error updating snapshot tags")
+		fmt.Println(err)
+		return interfaces.Snapshot{}, err
+	}
+	return snapshot, nil
 }
