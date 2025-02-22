@@ -4,8 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "start": "vite dist",
-    "dev": "vite",
+    "start": "vite dist --port 27019",
+    "dev": "vite --port 27019",
     "build": "tsc -b && NODE_ENV=docker vite build",
     "lint": "eslint .",
     "preview": "vite preview"

@@ -1,6 +1,5 @@
 const IsDockerHost = process.env.NODE_ENV === "docker";
-console.log("IsDockerHost", IsDockerHost);
-export const API = IsDockerHost ? "/api" : "http://localhost:3001/api";
+export const API = IsDockerHost ? "/api" : "http://localhost:27018/api";
 
 const Config = {
   headers: {

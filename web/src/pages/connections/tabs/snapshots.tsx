@@ -4,8 +4,6 @@ import {
   Chip,
   Divider,
   Input,
-  Listbox,
-  ListboxItem,
   Modal,
   ModalBody,
   ModalContent,
@@ -35,9 +33,7 @@ import {
   Boxes,
   Cable,
   Camera,
-  Copy,
   DatabaseBackup,
-  Divide,
   Download,
   Hammer,
   Pencil,
@@ -48,11 +44,10 @@ import {
 } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
+import RestoreAPI from "../../../api/restore";
 import EmptyState from "../../../components/emptyState";
 import { useConnectionStore } from "../../../stores/connection.store";
 import { useSnapshotStore } from "../../../stores/snapshot.store";
-import RestoreAPI from "../../../api/restore";
-import { snapshot } from "node:test";
 
 export function TakeSnapshotModal() {
   const { connection } = useConnectionStore();
@@ -418,7 +413,7 @@ export function EditSnapshotTags({ snapshot_id }: { snapshot_id: string }) {
 
   const handleUpdateTags = async () => {
     setIsLoading(true);
-    const { snapshot, error } = await SnapShotAPI.UpdateSnapshotTagsRequest(
+    const { error } = await SnapShotAPI.UpdateSnapshotTagsRequest(
       connection?.connectionID as string,
       snapshot_id as string,
       tags
@@ -500,7 +495,7 @@ export type Props = {
   ConnectionID: string;
 };
 export default function ConnectionSnapshots() {
-  const { getSnapshots, snapshotList, snapshot } = useSnapshotStore();
+  const { getSnapshots, snapshotList } = useSnapshotStore();
   const { id } = useParams();
 
   const columns: {
