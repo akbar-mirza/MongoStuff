@@ -51,10 +51,6 @@ func routes(app *fiber.App) {
 		return controllers.DownloadSnapshot(c)
 	})
 
-	app.Static("/", "./web/dist", fiber.Static{
-		Compress: true,
-	})
-
 	api := app.Group("/api")
 	api.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("MongoStuff API")
@@ -84,6 +80,11 @@ func routes(app *fiber.App) {
 	restoreGroup.Get("/:ConnID", controllers.GetRestores)
 	restoreGroup.Post("/:ConnID/:SnapID", controllers.RestoreSnapshot)
 	restoreGroup.Get("/:ConnID/:RestoreID", controllers.GetRestore)
+
+	// Catches all routes not defined
+	app.Static("*", "./web/dist", fiber.Static{
+		Compress: true,
+	})
 }
 
 func main() {
