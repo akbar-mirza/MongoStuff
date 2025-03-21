@@ -15,7 +15,8 @@ RUN go mod download
 
 # Copy the rest of the application
 COPY . .
-
+# Set the environment variable
+ENV IS_DOCKER="true"
 # Build the application as a statically linked binary
 RUN go build  -o app .
 

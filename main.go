@@ -94,16 +94,22 @@ func routes(app *fiber.App) {
 	app.Static("*", "./web/dist", fiber.Static{
 		Compress: true,
 	})
+
 }
 
 func main() {
 	var app = global.App()
-	slog.Info("Domain", "value", os.Getenv("DOMAIN"))
-	app.Use(cors.New(cors.Config{
-		ExposeHeaders:    "Content-Disposition",
-		AllowOrigins:     os.Getenv("DOMAIN"), // Set your frontend domain, NOT "*"
-		AllowCredentials: true,                // Required for cookies to work
-	}))
+
+	IsDocker := os.Getenv("IS_DOCKER")
+	slog.Info("IsDocker", "value", IsDocker)
+	if IsDocker != "true" {
+		// For Dev When running on local machine
+		app.Use(cors.New(cors.Config{
+			ExposeHeaders:    "Content-Disposition",
+			AllowOrigins:     "http://localhost:27019", //  react vite server
+			AllowCredentials: true,                     // Required for cookies to work
+		}))
+	}
 
 	routes(app)
 	if err := app.Listen(
