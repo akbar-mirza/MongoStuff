@@ -90,7 +90,12 @@ func routes(app *fiber.App) {
 	authGroup.Get("/current", controllers.GetCurrentUser)
 	authGroup.Delete("/logout", controllers.Logout)
 
-	// Catches all routes not defined
+	// Serve Static Files
+	app.Static("/", "./web/dist", fiber.Static{
+		Compress: true,
+	})
+
+	// To avoid 404 on page refresh
 	app.Static("*", "./web/dist", fiber.Static{
 		Compress: true,
 	})
