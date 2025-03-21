@@ -1,7 +1,7 @@
 package controllers
 
 import (
-	"fmt"
+	"log/slog"
 	"mongostuff/src/interfaces"
 	"mongostuff/src/services"
 
@@ -35,7 +35,10 @@ func AddConnection(
 func GetConnections(
 	c *fiber.Ctx,
 ) error {
-	connections := services.GetConnections("admin")
+	UserID := c.Locals("UserID").(string)
+	connections := services.GetConnections(UserID)
+
+	slog.Info("UserID", "value", UserID)
 	return c.JSON(fiber.Map{
 		"connections": connections,
 	})
@@ -59,7 +62,6 @@ func SyncConnectionDatabases(
 	c *fiber.Ctx,
 ) error {
 	ConnID := c.Params("ConnID")
-	fmt.Println("Connection ID:", ConnID)
 	Databases := services.SyncConnectionDatabases(ConnID)
 	return c.JSON(fiber.Map{
 		"databases": Databases,
@@ -70,7 +72,6 @@ func GetClusterStatus(
 	c *fiber.Ctx,
 ) error {
 	ConnID := c.Params("ConnID")
-	fmt.Println("Connection ID:", ConnID)
 	Status := services.GetClusterStatus(ConnID)
 	// return json response
 	return c.JSON(fiber.Map{

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import ConnectionAPI, { TConnection } from "../api/connection";
+import { toast } from "sonner";
 
 export const useConnectionStore = create<{
   connection: TConnection | null;
@@ -16,7 +17,7 @@ export const useConnectionStore = create<{
   getConnections: async () => {
     const { connections, error } = await ConnectionAPI.ListConnectionsRequest();
     if (error) {
-      console.error(error);
+      toast.error(error.error);
       return;
     }
     set({ connectionList: connections });
@@ -24,7 +25,7 @@ export const useConnectionStore = create<{
   getConnection: async (id: string) => {
     const { connection, error } = await ConnectionAPI.GetConnectionRequest(id);
     if (error) {
-      console.error(error);
+      toast.error(error.error);
       return;
     }
     set({ connection });

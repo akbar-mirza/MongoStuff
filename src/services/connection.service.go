@@ -23,7 +23,6 @@ func AddConnection(
 	// parse uri
 	parsedURI := libs.URIParser(params.URI)
 
-
 	if parsedURI.Port == "" {
 		parsedURI.Port = "27017"
 	}
@@ -75,6 +74,9 @@ func GetConnections(
 		fmt.Println("Error getting connections")
 		fmt.Println(err)
 		return err
+	}
+	if len(connections) == 0 {
+		return []bson.M{}
 	}
 	return connections
 }
@@ -130,6 +132,10 @@ func getDiskUsage(client *mongo.Client) interface{} {
 
 	// parse the result into json
 	jsonResult, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		fmt.Println("Error marshaling JSON")
+		log.Fatal(err)
+	}
 
 	// Extract specific information, e.g., RAM and CPU
 	// if system, ok := result["system"].(map[string]interface{}); ok {
