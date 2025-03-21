@@ -1,7 +1,5 @@
 
-
 #  Script Start Dev: Run Air & cd web && npm run dev (IN PARALLEL)
-
 
 web-dev: 
 	@echo "Starting Web Dev Server"
