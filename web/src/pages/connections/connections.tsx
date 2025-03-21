@@ -20,6 +20,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import ConnectionAPI, { TConnection } from "../../api/connection";
 import { useConnectionStore } from "../../stores/connection.store";
+import EmptyState from "../../components/emptyState";
+import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 
 export function ConnectionCard(props: TConnection) {
   return (
@@ -178,6 +180,26 @@ export default function Connections() {
           <ConnectionCard key={index} {...connection} />
         ))}
       </div>
+      {connectionList?.length === 0 && (
+        <div>
+          <div className="flex flex-col items-center justify-center h-80">
+            <EmptyState
+              Icon={
+                <DotLottieReact
+                  src="https://lottie.host/281813e4-12ea-4257-a041-69fc069edafe/dQopTPxL06.lottie"
+                  loop
+                  autoplay
+                  backgroundColor="transparent"
+                />
+              }
+              Title="Nothing to see here....."
+              Description="Add New Connection to see something here bruh!, meanwhile let me sleep."
+              TitleClassName="-translate-y-20"
+              DescriptionClassName="-translate-y-20"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

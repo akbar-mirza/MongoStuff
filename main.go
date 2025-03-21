@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"mongostuff/src/controllers"
 	global "mongostuff/src/globals"
+	"mongostuff/src/middlewares"
 	"os"
 
 	"github.com/gofiber/fiber/v2"
@@ -22,16 +23,17 @@ func init() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	slog.SetDefault(logger)
 
+	// Local Storage
 	// if _stuffs/snapshots folder doesn't exist, create it
 	if _, err := os.Stat("./_stuffs"); os.IsNotExist(err) {
-		err := os.Mkdir("./_stuffs", 0755)
+		err := os.Mkdir("./_stuffs", 0755) // 0755 is the octal representation of rwxr-xr-x
 		if err != nil {
-			slog.Error("Error creating _stuffs directory", err)
+			slog.Error("Error creating _stuffs directory", "error", err)
 		}
 		slog.Info("Created _stuffs/snapshots directory")
 		err = os.Mkdir("./_stuffs/snapshots", 0755)
 		if err != nil {
-			slog.Error("Error creating _stuffs directory", err)
+			slog.Error("Error creating _stuffs directory", "error", err)
 		}
 		slog.Info("Created _stuffs/snapshots directory")
 	}
@@ -60,26 +62,33 @@ func routes(app *fiber.App) {
 	})
 
 	// [Connection Routes]
-	connectionGroup := api.Group("/connection")
+	connectionGroup := api.Group("/connection", middlewares.Auth)
 	connectionGroup.Get("/", controllers.GetConnections)
-	connectionGroup.Get("/:ConnID", controllers.GetConnection)
+	connectionGroup.Get("/:ConnID", middlewares.IsConnectionBelongToUser, controllers.GetConnection)
 	connectionGroup.Post("/", controllers.AddConnection)
-	connectionGroup.Get("/:ConnID/sync-db", controllers.SyncConnectionDatabases)
-	connectionGroup.Get("/:ConnID/status", controllers.GetClusterStatus)
+	connectionGroup.Get("/:ConnID/sync-db", middlewares.IsConnectionBelongToUser, controllers.SyncConnectionDatabases)
+	connectionGroup.Get("/:ConnID/status", middlewares.IsConnectionBelongToUser, controllers.GetClusterStatus)
 
 	// [Snapshot Routes]
-	snapshotGroup := api.Group("/snapshot")
-	snapshotGroup.Post("/:ConnID", controllers.TakSnapshot)
-	snapshotGroup.Get("/:ConnID", controllers.GetSnapshots)
-	snapshotGroup.Get("/:ConnID/:SnapID", controllers.GetSnapshot)
-	snapshotGroup.Get("/:ConnID/:SnapID/download", controllers.DownloadSnapshot)
-	snapshotGroup.Patch("/:ConnID/:SnapID/tags", controllers.UpdateSnapshotTags)
+	snapshotGroup := api.Group("/snapshot", middlewares.Auth)
+	snapshotGroup.Post("/:ConnID", middlewares.IsConnectionBelongToUser, controllers.TakSnapshot)
+	snapshotGroup.Get("/:ConnID", middlewares.IsConnectionBelongToUser, controllers.GetSnapshots)
+	snapshotGroup.Get("/:ConnID/:SnapID", middlewares.IsConnectionBelongToUser, controllers.GetSnapshot)
+	snapshotGroup.Get("/:ConnID/:SnapID/download", middlewares.IsConnectionBelongToUser, controllers.DownloadSnapshot)
+	snapshotGroup.Patch("/:ConnID/:SnapID/tags", middlewares.IsConnectionBelongToUser, controllers.UpdateSnapshotTags)
 
 	// [Restore Routes]
-	restoreGroup := api.Group("/restore")
-	restoreGroup.Get("/:ConnID", controllers.GetRestores)
-	restoreGroup.Post("/:ConnID/:SnapID", controllers.RestoreSnapshot)
-	restoreGroup.Get("/:ConnID/:RestoreID", controllers.GetRestore)
+	restoreGroup := api.Group("/restore", middlewares.Auth)
+	restoreGroup.Get("/:ConnID", middlewares.IsConnectionBelongToUser, controllers.GetRestores)
+	restoreGroup.Post("/:ConnID/:SnapID", middlewares.IsConnectionBelongToUser, controllers.RestoreSnapshot)
+	restoreGroup.Get("/:ConnID/:RestoreID", middlewares.IsConnectionBelongToUser, controllers.GetRestore)
+
+	// [Auth Routes]
+	authGroup := api.Group("/auth")
+	authGroup.Post("/login", controllers.Login)
+	authGroup.Post("/register", controllers.Register)
+	authGroup.Get("/current", controllers.GetCurrentUser)
+	authGroup.Delete("/logout", controllers.Logout)
 
 	// Catches all routes not defined
 	app.Static("*", "./web/dist", fiber.Static{
@@ -90,8 +99,9 @@ func routes(app *fiber.App) {
 func main() {
 	var app = global.App()
 	app.Use(cors.New(cors.Config{
-		ExposeHeaders: "Content-Disposition",
-		AllowOrigins:  "*",
+		ExposeHeaders:    "Content-Disposition",
+		AllowOrigins:     "http://localhost:27019", // Set your frontend domain, NOT "*"
+		AllowCredentials: true,                     // Required for cookies to work
 	}))
 
 	routes(app)

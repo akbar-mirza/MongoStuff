@@ -24,11 +24,14 @@ func RestoreSnapshot(
 ) error {
 
 	var Collection = global.GetCollection(global.RestoresCollection)
-	snapshot, err := GetSnapshot(snapshotID)
-	connection, err := GetConnection(connectionID)
+	snapshot, snap_err := GetSnapshot(snapshotID)
+	connection, conn_err := GetConnection(connectionID)
 
-	if err != nil {
-		return err
+	if snap_err != nil {
+		return snap_err
+	}
+	if conn_err != nil {
+		return conn_err
 	}
 
 	fileName := snapshotID + "_" + strconv.FormatInt(snapshot.Timestamp, 10)
@@ -73,7 +76,7 @@ func RestoreSnapshot(
 		RestoreToDiffConnection: snapshot.ConnectionID != connectionID,
 	}
 
-	_, err = Collection.InsertOne(
+	_, err := Collection.InsertOne(
 		context.TODO(),
 		bson.M{
 			"connectionID":            restoreParams.ConnectionID,

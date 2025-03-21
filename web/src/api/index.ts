@@ -1,10 +1,29 @@
 const IsDockerHost = process.env.NODE_ENV === "docker";
 export const API = IsDockerHost ? "/api" : "http://localhost:27018/api";
 
+export const GetCookie = (name: string) => {
+  const cookie = document.cookie
+    .split(";")
+    .find((c) => c.startsWith(`${name}=`));
+  return cookie?.split("=")[1];
+};
+
 const Config = {
   headers: {
     "Content-Type": "application/json",
   },
+  credentials: "include" as RequestCredentials,
+};
+
+const SetConfig = (): RequestInit => {
+  const csrfToken = GetCookie("csrf");
+  return {
+    ...Config,
+    headers: {
+      ...Config.headers,
+      ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
+    },
+  };
 };
 
 type TOptions = {
@@ -15,7 +34,7 @@ export const Get = async <Resp, Err>(
   endpoint: string,
   options?: TOptions
 ): Promise<[Resp | null, Err | null, Headers | null]> => {
-  const resp = await fetch(`${API}/${endpoint}`, Config);
+  const resp = await fetch(`${API}/${endpoint}`, SetConfig());
 
   const data = options?.Blob ? await resp?.blob() : await resp?.json();
 
@@ -29,22 +48,31 @@ export const Get = async <Resp, Err>(
   return [data as Resp, null, resp.headers];
 };
 
-export const Post = async <Req, Resp, Err>(
+export const Post = async <Req, Resp, Err extends { error: string }>(
   endpoint: string,
   body: Req
 ): Promise<[Resp | null, Err | null]> => {
-  const resp = await fetch(`${API}/${endpoint}`, {
-    ...Config,
-    method: "POST",
-    body: JSON.stringify(body),
-  });
-  const data = await resp.json();
+  try {
+    const resp = await fetch(`${API}/${endpoint}`, {
+      ...SetConfig(),
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    const data = await resp.json();
 
-  if (!resp.ok) {
-    return [null, data as Err];
+    if (!resp.ok) {
+      return [null, data as Err];
+    }
+
+    return [data as Resp, null];
+  } catch (_) {
+    return [
+      null,
+      {
+        error: "Something went wrong",
+      } as Err,
+    ];
   }
-
-  return [data as Resp, null];
 };
 
 export type TErrorResp = {
@@ -56,7 +84,7 @@ export const Patch = async <Req, Resp, Err>(
   body: Req
 ): Promise<[Resp | null, Err | null]> => {
   const resp = await fetch(`${API}/${endpoint}`, {
-    ...Config,
+    ...SetConfig(),
     method: "PATCH",
     body: JSON.stringify(body),
   });
@@ -74,7 +102,7 @@ export const Delete = async <Req, Resp, Err>(
   body: Req
 ): Promise<[Resp | null, Err | null]> => {
   const resp = await fetch(`${API}/${endpoint}`, {
-    ...Config,
+    ...SetConfig(),
     method: "DELETE",
     body: JSON.stringify(body),
   });
@@ -92,7 +120,7 @@ export const Put = async <Req, Resp, Err>(
   body: Req
 ): Promise<[Resp | null, Err | null]> => {
   const resp = await fetch(`${API}/${endpoint}`, {
-    ...Config,
+    ...SetConfig(),
     method: "PUT",
     body: JSON.stringify(body),
   });
