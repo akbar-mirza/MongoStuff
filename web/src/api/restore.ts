@@ -47,6 +47,7 @@ export const RestoreSnapshot = async (params: {
     {
       message: string;
       restore: TRestore;
+      error: string;
     }
   >(`restore/${connectionID}/${snapshotID}`, {
     database,
