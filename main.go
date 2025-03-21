@@ -98,10 +98,11 @@ func routes(app *fiber.App) {
 
 func main() {
 	var app = global.App()
+	slog.Info("Domain", "value", os.Getenv("DOMAIN"))
 	app.Use(cors.New(cors.Config{
 		ExposeHeaders:    "Content-Disposition",
-		AllowOrigins:     "http://localhost:27019", // Set your frontend domain, NOT "*"
-		AllowCredentials: true,                     // Required for cookies to work
+		AllowOrigins:     os.Getenv("DOMAIN"), // Set your frontend domain, NOT "*"
+		AllowCredentials: true,                // Required for cookies to work
 	}))
 
 	routes(app)
