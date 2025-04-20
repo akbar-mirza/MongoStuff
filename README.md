@@ -31,7 +31,7 @@ MongoStuff is a modern, full-stack MongoDB management and backup solution built 
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/akbarmirza/mongostuff.git
+git clone https://github.com/akbar-mirza/mongostuff.git
 cd mongostuff
 ```
 
