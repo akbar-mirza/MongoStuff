@@ -4,6 +4,9 @@ MongoStuff is a modern, full-stack MongoDB management and backup solution built 
 
 > **Disclaimer:** MongoStuff is an independent project and is not affiliated with, endorsed by, or in any way officially connected to MongoDB, Inc. or its subsidiaries. MongoDB® is a registered trademark of MongoDB, Inc.
 
+![image](https://github.com/user-attachments/assets/44ddaa1e-ab7d-4b8b-8d22-a63fb4a971f1)
+
+
 ## Features
 
 - 🔐 Secure user authentication system
