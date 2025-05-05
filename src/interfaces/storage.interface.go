@@ -1,5 +1,7 @@
 package interfaces
 
+import "time"
+
 // Enum for storage type
 type StorageType string
 
@@ -9,8 +11,21 @@ const (
 	R2    StorageType = "r2"
 )
 
+type StorageUnion struct {
+	Bucket    string `json:"bucket"`
+	Region    string `json:"region"`
+	AccessKey string `json:"accessKey"`
+	SecretKey string `json:"secretKey"`
+	Folder    string `json:"folder"`
+}
+
 type Storage struct {
-	Type StorageType `json:"type"`
+	Name      string       `json:"name"`
+	Type      StorageType  `json:"type"`
+	StorageID string       `json:"storageID"`
+	CreatedAt time.Time    `json:"createdAt"`
+	Storage   StorageUnion `json:"storage"`
+	UserID    string       `json:"userID"`
 }
 
 type LocalStorage struct {
@@ -24,6 +39,7 @@ type S3Storage struct {
 	Region    string `json:"region"`
 	AccessKey string `json:"accessKey"`
 	SecretKey string `json:"secretKey"`
+	Folder    string `json:"folder"`
 }
 
 type R2Storage struct {
@@ -31,6 +47,7 @@ type R2Storage struct {
 	Endpoint  string `json:"endpoint"`
 	AccessKey string `json:"accessKey"`
 	SecretKey string `json:"secretKey"`
+	Folder    string `json:"folder"`
 }
 
 type StorageInterface interface {

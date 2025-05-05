@@ -90,6 +90,14 @@ func routes(app *fiber.App) {
 	authGroup.Get("/current", controllers.GetCurrentUser)
 	authGroup.Delete("/logout", controllers.Logout)
 
+	// [Storage]
+	storageGroup := api.Group("/storage", middlewares.Auth)
+	storageGroup.Post("/", controllers.CreateStorage)
+	storageGroup.Get("/", controllers.ListStorages)
+	storageGroup.Get("/:StorageID", controllers.GetStorage)
+	storageGroup.Patch("/:StorageID", controllers.UpdateStorage)
+	storageGroup.Delete("/:StorageID", controllers.DeleteStorage)
+
 	// Serve Static Files
 	app.Static("/", "./web/dist", fiber.Static{
 		Compress: true,
