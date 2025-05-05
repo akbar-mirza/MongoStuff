@@ -2,6 +2,7 @@ package interfaces
 
 type BackupPolicy struct {
 	Interval     int    `json:"interval"`  // Frequency
+	TimeUnit     string `json:"timeUnit"`  // Time unit (minutes, hours, days)
 	Keep         int    `json:"keep"`      // Number of backups
 	Retention    int    `json:"retention"` // Number of days
 	Name         string `json:"name"`
