@@ -68,6 +68,32 @@ func UpdateStorage(
 	})
 }
 
+func SetDefaultStorage(
+	c *fiber.Ctx,
+) error {
+	body := new(interfaces.Storage)
+	UserID := c.Locals("UserID").(string)
+	StorageID := c.Params("StorageID")
+	body.StorageID = StorageID
+	if err := c.BodyParser(body); err != nil {
+		c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid request",
+		})
+	}
+	err := services.SetDefaultStorage(
+		services.SetDefaultStorageParams{
+			StorageID: body.StorageID,
+			UserID:    UserID,
+		},
+	)
+	if err != nil {
+		return err
+	}
+	return c.JSON(fiber.Map{
+		"message": "Default Storage updated",
+	})
+}
+
 func GetStorage(
 	c *fiber.Ctx,
 ) error {

@@ -59,6 +59,7 @@ type UpdateStorageParams struct {
 	Type      interfaces.StorageType
 	Storage   interface{}
 	UserID    string
+	IsDefault bool
 }
 
 func UpdateStorage(params UpdateStorageParams) (interfaces.Storage, error) {
@@ -86,6 +87,65 @@ func UpdateStorage(params UpdateStorageParams) (interfaces.Storage, error) {
 		return interfaces.Storage{}, err
 	}
 
+	return storage, nil
+}
+
+type SetDefaultStorageParams struct {
+	StorageID string
+	UserID    string
+}
+
+func SetDefaultStorage(params SetDefaultStorageParams) error {
+	var Collection = global.GetCollection(global.StoragesCollection)
+	_, err := Collection.UpdateMany(
+		context.TODO(),
+		bson.M{
+			"userID": params.UserID,
+		},
+		bson.M{
+			"$set": bson.M{
+				"isDefault": false,
+			},
+		},
+	)
+	if err != nil {
+		return err
+	}
+	_, err = Collection.UpdateOne(
+		context.TODO(),
+		bson.M{
+			"storageID": params.StorageID,
+			"userID":    params.UserID,
+		},
+		bson.M{
+			"$set": bson.M{
+				"isDefault": true,
+			},
+		},
+	)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+type GetDefaultStorageParams struct {
+	UserID string
+}
+
+func GetDefaultStorage(params GetDefaultStorageParams) (interfaces.Storage, error) {
+	var Collection = global.GetCollection(global.StoragesCollection)
+	var storage interfaces.Storage
+	err := Collection.FindOne(
+		context.TODO(),
+		bson.M{
+			"userID":    params.UserID,
+			"isDefault": true,
+		},
+	).Decode(&storage)
+	if err != nil {
+		return interfaces.Storage{}, err
+	}
 	return storage, nil
 }
 
