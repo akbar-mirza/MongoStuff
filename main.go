@@ -97,6 +97,7 @@ func routes(app *fiber.App) {
 	storageGroup.Get("/:StorageID", controllers.GetStorage)
 	storageGroup.Patch("/:StorageID", controllers.UpdateStorage)
 	storageGroup.Delete("/:StorageID", controllers.DeleteStorage)
+	storageGroup.Patch("/:StorageID/default", controllers.SetDefaultStorage)
 
 	// Serve Static Files
 	app.Static("/", "./web/dist", fiber.Static{
