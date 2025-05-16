@@ -1,5 +1,11 @@
 package interfaces
 
+type Artifact struct {
+	URL     string `json:"url"`
+	Key     string `json:"key"`
+	Expires int64  `json:"expires"`
+}
+
 type Snapshot struct {
 	ConnectionID      string `json:"connectionID"`
 	IsClusterSnapshot bool   `json:"isClusterSnapshot"`
@@ -14,4 +20,6 @@ type Snapshot struct {
 	Size        int64    `json:"size"`
 	Compression bool     `json:"compression"`
 	Tags        []string `json:"tags"`
+	Artifact    Artifact `json:"artifact"`
+	StorageID   string   `json:"storageID"`
 }

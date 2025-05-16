@@ -3,10 +3,12 @@ package services
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	global "mongostuff/src/globals"
 	"mongostuff/src/interfaces"
 	"mongostuff/src/libs"
 	"mongostuff/src/sdk"
+	"os"
 	"strconv"
 	"time"
 
@@ -93,6 +95,34 @@ func TakSnapshot(params TakSnapshotParams) (interfaces.Snapshot, error) {
 		Compression:       params.Compression,
 	}
 
+	slog.Info("Saving snapshot to storage")
+	storage, err := GetDefaultStorage(
+		GetDefaultStorageParams{
+			UserID: connection.UserID,
+		},
+	)
+
+	slog.Info("Storage:", storage)
+
+	if err != nil {
+		return snapShotParams, err
+	}
+
+	storagInstance := interfaces.Storage{
+		Type:    storage.Type,
+		Storage: storage.Storage,
+	}
+
+	fileBtes, err := os.ReadFile(outputFile)
+	if err != nil {
+		return snapShotParams, err
+	}
+	// Upload file
+	artifact, err := storagInstance.UploadFile(
+		snapshotID,
+		fileBtes,
+	)
+
 	_, err = Collection.InsertOne(
 		context.TODO(),
 		bson.M{
@@ -107,6 +137,8 @@ func TakSnapshot(params TakSnapshotParams) (interfaces.Snapshot, error) {
 			"duration":          snapShotParams.Duration,
 			"size":              snapShotParams.Size,
 			"compression":       snapShotParams.Compression,
+			"artifact":          artifact,
+			"storageID":         storage.StorageID,
 		},
 	)
 
