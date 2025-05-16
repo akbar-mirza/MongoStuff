@@ -51,10 +51,21 @@ const CreateConnectionRequest = async (body: {
   return { connection: connection?.connection, error };
 };
 
+const SyncConnectionRequest = async (connectionID: string) => {
+  const [connection, error] = await Get<
+    {
+      connection: TConnection;
+    },
+    TErrorResp
+  >(`connection/${connectionID}/sync-db`);
+  return { connection: connection?.connection, error };
+};
+
 const ConnectionAPI = {
   ListConnectionsRequest,
   GetConnectionRequest,
   CreateConnectionRequest,
+  SyncConnectionRequest,
 };
 
 export default ConnectionAPI;
