@@ -25,7 +25,7 @@ import {
   TableRow,
   Tooltip,
   useDisclosure,
-} from "@nextui-org/react";
+} from "@heroui/react";
 import React, { useEffect, useState } from "react";
 import SnapShotAPI, { TSnapShot } from "../../../api/snapshot";
 

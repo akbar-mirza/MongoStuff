@@ -18,7 +18,7 @@ import {
   TableRow,
   Tooltip,
   useDisclosure
-} from "@nextui-org/react";
+} from "@heroui/react";
 import { Terminal } from "lucide-react";
 import React, { useEffect } from "react";
 import { useParams } from "react-router-dom";

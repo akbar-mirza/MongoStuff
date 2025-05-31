@@ -8,7 +8,7 @@ import {
   ModalHeader,
   Tab,
   Tabs,
-} from "@nextui-org/react";
+} from "@heroui/react";
 import React, { useState } from "react";
 import { useAuthStore } from "../../stores/auth.store";
 import { AuthAPI } from "../../api/auth";

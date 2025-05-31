@@ -8,7 +8,7 @@ import {
   Navbar,
   NavbarBrand,
   NavbarContent,
-} from "@nextui-org/react";
+} from "@heroui/react";
 import { AuthAPI } from "../api/auth";
 import { useAuthStore } from "../stores/auth.store";
 
