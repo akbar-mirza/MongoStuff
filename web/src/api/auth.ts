@@ -49,6 +49,7 @@ const CurretUserRequest = async () => {
       error: string;
     }
   >("auth/current");
+
   return { user, error };
 };
 

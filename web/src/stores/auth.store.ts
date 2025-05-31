@@ -16,6 +16,7 @@ type AuthStore = {
   isAuthModalOpen: boolean;
   setIsAuthModalOpen: (isOpen: boolean) => void;
   isAuth: boolean;
+  signOut: () => void;
 };
 
 export const useAuthStore = create<AuthStore>((set) => ({
@@ -25,9 +26,11 @@ export const useAuthStore = create<AuthStore>((set) => ({
   clearUser: () => set({ user: null }),
   getCurrentUser: async () => {
     const { user, error } = await AuthAPI.CurretUserRequest();
-    if (error) {
+    if (error?.error) {
       console.error(error);
       toast.error(error.error);
+      set({ isAuth: false });
+      set({ user: null });
       return;
     }
     set({ user: user?.user });
@@ -35,4 +38,13 @@ export const useAuthStore = create<AuthStore>((set) => ({
   },
   isAuthModalOpen: false,
   setIsAuthModalOpen: (isOpen: boolean) => set({ isAuthModalOpen: isOpen }),
+  signOut: async () => {
+    // await AuthAPI.LogoutRequest();
+    // remove all cookies
+    document.cookie.split(";").forEach((cookie) => {
+      const [name] = cookie.split("=");
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/`;
+    });
+    window.location.reload();
+  },
 }));
