@@ -10,6 +10,7 @@ type Props = {
   clearSnapshot: () => void;
   setSnapshot: (snapshot: TSnapShot | null) => void;
   findSnapshot: (snapshotID: string) => TSnapShot | undefined;
+  enablePolling: boolean; // when any snapshot is in Queued or Processing state, enable polling
 };
 export const useSnapshotStore = create<Props>((set) => ({
   snapshot: null,
@@ -40,10 +41,15 @@ export const useSnapshotStore = create<Props>((set) => ({
       toast.error(error.error);
       return;
     }
+    const enablePolling = snapshots?.some(
+      (s) => s.status === "Queued" || s.status === "Processing"
+    );
+    set({ enablePolling });
     set({ snapshotList: snapshots ?? [] });
   },
   clearSnapshot: () => set({ snapshot: null }),
   setSnapshot: (snapshot: TSnapShot | null) => {
     set({ snapshot });
   },
+  enablePolling: false,
 }));
