@@ -14,7 +14,7 @@ import {
   Spacer,
   Tooltip,
   useDisclosure,
-} from "@nextui-org/react";
+} from "@heroui/react";
 import { LinkIcon, Pen, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";

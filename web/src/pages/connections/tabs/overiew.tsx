@@ -6,7 +6,7 @@ import {
   Chip,
   Listbox,
   ListboxItem,
-} from "@nextui-org/react";
+} from "@heroui/react";
 import { useConnectionStore } from "../../../stores/connection.store";
 import ConnectionAPI from "../../../api/connection";
 import { toast } from "sonner";

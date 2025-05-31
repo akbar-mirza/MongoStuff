@@ -1,4 +1,4 @@
-import { Tab, Tabs } from "@nextui-org/react";
+import { Tab, Tabs } from "@heroui/react";
 import { Activity, Cable, HardDriveDownload, Settings } from "lucide-react";
 // import { GalleryIcon } from "./GalleryIcon";
 // import { MusicIcon } from "./MusicIcon";
