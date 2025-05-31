@@ -16,6 +16,7 @@ import {
   Select,
   SelectItem,
   Spacer,
+  Spinner,
   Switch,
   Table,
   TableBody,
@@ -33,9 +34,12 @@ import {
   Boxes,
   Cable,
   Camera,
+  Database,
   DatabaseBackup,
   Download,
+  GitBranch,
   Hammer,
+  Loader,
   Pencil,
   Shrink,
   Tags,
@@ -495,7 +499,7 @@ export type Props = {
   ConnectionID: string;
 };
 export default function ConnectionSnapshots() {
-  const { getSnapshots, snapshotList } = useSnapshotStore();
+  const { getSnapshots, snapshotList, enablePolling } = useSnapshotStore();
   const { id } = useParams();
 
   const columns: {
@@ -511,13 +515,24 @@ export default function ConnectionSnapshots() {
     { key: "actions", label: "Actions" },
   ];
 
+  const POLLING_INTERVAL = 10000; // 10 seconds
+
   useEffect(() => {
     getSnapshots(id as string);
-  }, [id]);
+    if (enablePolling) {
+      const interval = setInterval(() => {
+        toast.info("Updating Snapshots...");
+        getSnapshots(id as string);
+      }, POLLING_INTERVAL);
+      return () => clearInterval(interval);
+    }
+  }, [id, enablePolling]);
 
   const statusColorMap: { [key in TSnapShot["status"]]: string } = {
     Success: "success",
     Failed: "danger",
+    Processing: "warning",
+    Queued: "info",
   };
 
   const renderCell = React.useCallback(
@@ -586,10 +601,19 @@ export default function ConnectionSnapshots() {
         case "status":
           return (
             <Chip
-              className="capitalize"
+              className="capitalize gap-1 border-0"
               color={statusColorMap[item.status] as "success" | "danger"}
-              size="sm"
+              size="md"
               variant="dot"
+              startContent={
+                item.status === "Processing" ? (
+                  <Spinner
+                    className="w-4 h-4"
+                    variant="simple"
+                    color={statusColorMap[item.status] as "success" | "danger"}
+                  />
+                ) : null
+              }
             >
               {cellValue}
             </Chip>
@@ -597,17 +621,20 @@ export default function ConnectionSnapshots() {
 
         case "snapshotID":
           return (
-            <span className="flex gap-1 items-center flex-wrap">
-              <Chip size="sm" variant="solid">
-                {cellValue}
+            <span className="flex flex-col gap-1 flex-wrap">
+              <Chip
+                size="sm"
+                variant="light"
+                className="text-sm text-foreground-600"
+              >
+                {cellValue.split("_")[1]}
               </Chip>
               {item?.tags?.length
                 ? item.tags.map((tag) => (
                     <Tooltip content="Tags">
                       <Chip
-                        size="sm"
                         variant="flat"
-                        className="capitalize text-violet-400"
+                        className="capitalize text-violet-400 text-xs"
                       >
                         {tag}
                       </Chip>
@@ -619,11 +646,18 @@ export default function ConnectionSnapshots() {
 
         case "scope":
           return (
-            <span className="flex gap-1 items-center">
+            <span className="flex flex-col gap-1 flex-wrap">
               <Chip
                 className="capitalize"
-                size="sm"
-                variant={cellValue?.length ? "flat" : "dot"}
+                size="md"
+                variant={cellValue?.length ? "flat" : "shadow"}
+                startContent={
+                  cellValue?.length ? (
+                    <Database size={12} />
+                  ) : (
+                    <Boxes size={12} />
+                  )
+                }
               >
                 {cellValue?.length ? cellValue : "Cluster"}
               </Chip>
@@ -634,6 +668,7 @@ export default function ConnectionSnapshots() {
                     variant="flat"
                     color="success"
                     className="capitalize"
+                    startContent={<GitBranch size={12} />}
                   >
                     {item?.collection?.length && item?.collection}
                   </Chip>
@@ -662,7 +697,19 @@ export default function ConnectionSnapshots() {
 
   return (
     <div className="w-full">
-      <div className="flex justify-end w-full">
+      <div className="flex justify-between w-full items-center">
+        <div className="flex items-center justify-center">
+          {enablePolling && (
+            <Chip
+              color="success"
+              size="md"
+              variant="light"
+              startContent={<Spinner variant="spinner" size="sm" />}
+            >
+              Caputuring Snapshot Updates
+            </Chip>
+          )}
+        </div>
         <TakeSnapshotModal />
       </div>
       <Spacer y={4} />
