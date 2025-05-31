@@ -146,11 +146,13 @@ func GetCurrentUser(
 	slog.Info("csrfToken: ", "value", csrfToken)
 
 	user, err := services.GetCurrentUser(sessionToken, csrfToken)
+
+	slog.Info("user", "value", user, "err", err)
 	if err != nil {
-		c.Status(400).JSON(fiber.Map{
-			"error": "invalid credentials",
+		return c.Status(400).JSON(fiber.Map{
+			"error": err.Error(),
 		})
-		return err
+
 	}
 
 	return c.JSON(fiber.Map{

@@ -11,6 +11,7 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const { getCurrentUser, user, setIsAuthModalOpen, isAuth } = useAuthStore();
+
   useEffect(() => {
     getCurrentUser();
   }, [getCurrentUser]);
