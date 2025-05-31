@@ -23,6 +23,209 @@ type TakSnapshotParams struct {
 	Compression  bool
 }
 
+/*
+Process snpashot asynchronously with goroutines
+*/
+func ProcessSnapshot(
+	snapshotID string,
+) {
+	slog.Info("Processing snapshot", snapshotID)
+	var Collection = global.GetCollection(global.SnapshotsCollection)
+	snapshot, err := GetSnapshot(snapshotID)
+	if err != nil {
+		fmt.Println("Error getting snapshot")
+		fmt.Println(err)
+		return
+	}
+
+	connection, err := GetConnection(
+		snapshot.ConnectionID,
+	)
+
+	unixString := strconv.FormatInt(snapshot.Timestamp, 10)
+
+	fmt.Println("Snapshot ID:", snapshotID)
+	outputFile := "./_stuffs/snapshots" + "/" + snapshotID + "_" + unixString
+
+	// resolve path for windows support
+
+	if snapshot.Compression {
+		outputFile += ".gz"
+	}
+
+	// Calculate duration
+	startTime := time.Now()
+
+	// Update status to processing
+	_, err = Collection.UpdateOne(
+		context.TODO(),
+		bson.M{
+			"snapshotID": snapshotID,
+		},
+		bson.M{
+			"$set": bson.M{
+				"status": "Processing",
+			},
+		},
+	)
+	dumpRes := sdk.Dump(
+		sdk.MongoDump{
+			URI:         connection.URI,
+			Database:    snapshot.Database,
+			Collection:  snapshot.Collection,
+			OutputDir:   outputFile,
+			Compression: snapshot.Compression,
+		},
+	)
+
+	// End time
+	endTime := time.Now()
+	duration := endTime.Sub(startTime)
+
+	var status = func() string {
+		if dumpRes.ErrorStr != "" {
+			return "Failed"
+		}
+		return "Success"
+	}()
+
+	var size int64 = 0
+	if status != "Failed" {
+		fmt.Println("Calculating directory size", outputFile)
+		dirSize, err := libs.CalDirSize(outputFile)
+		if err != nil {
+			fmt.Println("Error calculating directory size")
+			fmt.Println(err)
+		}
+		size = dirSize.Size
+	}
+
+	slog.Info("Saving snapshot to storage")
+	storage, err := GetDefaultStorage(
+		GetDefaultStorageParams{
+			UserID: connection.UserID,
+		},
+	)
+
+	slog.Info("Storage:", storage)
+
+	if err != nil {
+		fmt.Println("Error getting storage")
+		fmt.Println(err)
+		return
+	}
+
+	storagInstance := interfaces.Storage{
+		Type:    storage.Type,
+		Storage: storage.Storage,
+	}
+
+	fileBtes, err := os.ReadFile(outputFile)
+	if err != nil {
+		fmt.Println("Error reading file")
+		fmt.Println(err)
+		return
+	}
+
+	var ArtifactUnion interfaces.Artifact
+	if storage.IsDefault {
+		artifact, err := storagInstance.UploadFile(
+			snapshotID,
+			fileBtes,
+		)
+
+		if err != nil {
+			fmt.Println("Error uploading file")
+			fmt.Println(err)
+			return
+		}
+
+		ArtifactUnion = interfaces.Artifact{
+			URL:     artifact.URL,
+			Key:     artifact.Key,
+			Expires: artifact.Expires,
+		}
+
+		// Delete file
+		defer os.Remove(outputFile)
+
+	}
+
+	_, err = Collection.UpdateOne(
+		context.TODO(),
+		bson.M{
+			"snapshotID": snapshotID,
+		},
+		bson.M{
+			"$set": bson.M{
+				"status":    status,
+				"logs":      libs.FallBackString(dumpRes.ErrorStr, dumpRes.Output),
+				"duration":  duration.Milliseconds(), // Duration in milliseconds,
+				"size":      size,
+				"artifact":  ArtifactUnion,
+				"storageID": storage.StorageID,
+			},
+		},
+	)
+}
+
+func TakeSnapshotAsyc(params TakSnapshotParams) (interfaces.Snapshot, error) {
+	var Collection = global.GetCollection(global.SnapshotsCollection)
+
+	_, err := GetConnection(
+		params.ConnectionID,
+	)
+	if err != nil {
+		return interfaces.Snapshot{}, err
+	}
+	timeStamp := time.Now().UnixMilli()
+
+	snapshotID := libs.RandomString("snap_", 12)
+
+	fmt.Println("Snapshot ID:", snapshotID)
+
+	var isClusterSnapshot = libs.If(params.Database == "", true, false)
+
+	var snapShotParams = interfaces.Snapshot{
+		ConnectionID:      params.ConnectionID,
+		IsClusterSnapshot: isClusterSnapshot,
+		SnapshotID:        snapshotID,
+		Database:          params.Database,
+		Collection:        params.Collection,
+		Timestamp:         timeStamp,
+		Status:            "Queued",
+		Logs:              "",
+		Duration:          0, // Duration in milliseconds
+		Size:              0, // Size in bytes
+		Compression:       params.Compression,
+	}
+
+	_, err = Collection.InsertOne(
+		context.TODO(),
+		bson.M{
+			"connectionID":      snapShotParams.ConnectionID,
+			"isClusterSnapshot": snapShotParams.IsClusterSnapshot,
+			"snapshotID":        snapShotParams.SnapshotID,
+			"database":          snapShotParams.Database,
+			"collection":        snapShotParams.Collection,
+			"timestamp":         snapShotParams.Timestamp,
+			"status":            snapShotParams.Status,
+			"logs":              snapShotParams.Logs,
+			"duration":          snapShotParams.Duration,
+			"size":              snapShotParams.Size,
+			"compression":       snapShotParams.Compression,
+		},
+	)
+
+	if err != nil {
+		return snapShotParams, err
+	}
+
+	go ProcessSnapshot(snapshotID)
+
+	return snapShotParams, nil
+}
+
 func TakSnapshot(params TakSnapshotParams) (interfaces.Snapshot, error) {
 	var Collection = global.GetCollection(global.SnapshotsCollection)
 
@@ -104,10 +307,6 @@ func TakSnapshot(params TakSnapshotParams) (interfaces.Snapshot, error) {
 
 	slog.Info("Storage:", storage)
 
-	if err != nil {
-		return snapShotParams, err
-	}
-
 	storagInstance := interfaces.Storage{
 		Type:    storage.Type,
 		Storage: storage.Storage,
@@ -117,11 +316,27 @@ func TakSnapshot(params TakSnapshotParams) (interfaces.Snapshot, error) {
 	if err != nil {
 		return snapShotParams, err
 	}
+
 	// Upload file
-	artifact, err := storagInstance.UploadFile(
-		snapshotID,
-		fileBtes,
-	)
+	if storage.IsDefault {
+		artifact, err := storagInstance.UploadFile(
+			snapshotID,
+			fileBtes,
+		)
+
+		if err != nil {
+			return snapShotParams, err
+		}
+
+		snapShotParams.Artifact = interfaces.Artifact{
+			URL:     artifact.URL,
+			Key:     artifact.Key,
+			Expires: artifact.Expires,
+		}
+
+		// Delete file
+		defer os.Remove(outputFile)
+	}
 
 	_, err = Collection.InsertOne(
 		context.TODO(),
@@ -137,7 +352,7 @@ func TakSnapshot(params TakSnapshotParams) (interfaces.Snapshot, error) {
 			"duration":          snapShotParams.Duration,
 			"size":              snapShotParams.Size,
 			"compression":       snapShotParams.Compression,
-			"artifact":          artifact,
+			"artifact":          snapShotParams.Artifact,
 			"storageID":         storage.StorageID,
 		},
 	)

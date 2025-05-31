@@ -3,7 +3,7 @@ package interfaces
 type Artifact struct {
 	URL     string `json:"url"`
 	Key     string `json:"key"`
-	Expires int64  `json:"expires"`
+	Expires *int64 `json:"expires,omitempty"` // optional
 }
 
 type Snapshot struct {

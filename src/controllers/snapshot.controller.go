@@ -26,7 +26,7 @@ func TakSnapshot(
 		return err
 	}
 
-	snap, err := services.TakSnapshot(
+	snap, err := services.TakeSnapshotAsyc(
 		services.TakSnapshotParams{
 			ConnectionID: ConnID,
 			Database:     libs.FallBackString(body.Database, ""),
@@ -42,7 +42,7 @@ func TakSnapshot(
 	}
 
 	return c.JSON(fiber.Map{
-		"message":  "Snapshot has been taken successfully",
+		"message":  "Snapshot has been requested",
 		"snapshot": snap,
 	})
 }
