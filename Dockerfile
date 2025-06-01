@@ -51,7 +51,7 @@ WORKDIR /app
 # Copy the binary from the builder stage
 COPY --from=builder /app/app .
 COPY --from=react-builder /app/web ./web
-COPY ./.env . 2>/dev/null || true
+
 # make dir _stuffs/snapshots
 RUN mkdir -p /app/_stuffs/snapshots
 
