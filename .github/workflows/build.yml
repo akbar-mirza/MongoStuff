@@ -1,0 +1,22 @@
+name: Build
+
+on:
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  CONTAINER_NAME: mongostuff
+  PORT: 27018
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build . --file Dockerfile
+      - name: Run container
+        run: docker run -d --name $CONTAINER_NAME -p $PORT:$PORT
+      - name: Ping container
+        run: docker exec $CONTAINER_NAME ping -c 4 localhost
