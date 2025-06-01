@@ -52,9 +52,11 @@ WORKDIR /app
 COPY --from=builder /app/app .
 COPY --from=react-builder /app/web ./web
 
+# Copy the .env file
+COPY ./.env .
+
 # make dir _stuffs/snapshots
 RUN mkdir -p /app/_stuffs/snapshots
-
 
 # Set the default command to run the binary
 ENV MONGODB_TOOLS_PATH="./"
