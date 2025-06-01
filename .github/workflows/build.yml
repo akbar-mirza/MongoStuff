@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build image
-        run: docker build . --file Dockerfile
+        run: docker build -t ${{ env.CONTAINER_NAME }} .
       - name: Run container
         run: |
           docker run -d \
