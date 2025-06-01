@@ -53,7 +53,8 @@ COPY --from=builder /app/app .
 COPY --from=react-builder /app/web ./web
 
 # Copy the .env file
-COPY ./.env .
+RUN touch .env
+COPY .env* ./
 
 # make dir _stuffs/snapshots
 RUN mkdir -p /app/_stuffs/snapshots
