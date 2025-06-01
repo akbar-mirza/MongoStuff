@@ -6,6 +6,7 @@ type User struct {
 	SessionToken string `json:"sessionToken"`
 	CSRFToken    string `json:"csrfToken"`
 	UserID       string `json:"userID"`
+	LastLogin    int64  `json:"lastLogin"`
 }
 
 type CreateUser struct {

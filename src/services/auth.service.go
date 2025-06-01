@@ -6,6 +6,7 @@ import (
 	global "mongostuff/src/globals"
 	"mongostuff/src/interfaces"
 	"mongostuff/src/libs"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -103,7 +104,9 @@ func Login(
 		_ = Collection.FindOneAndUpdate(
 			context.TODO(),
 			bson.M{"userID": user.UserID},
-			bson.M{"$set": bson.M{"sessionToken": user.SessionToken, "csrfToken": user.CSRFToken}},
+			bson.M{"$set": bson.M{"sessionToken": user.SessionToken, "csrfToken": user.CSRFToken,
+				"lastLogin": time.Now().Unix(),
+			}},
 			options.FindOneAndUpdate().SetReturnDocument(options.After),
 		)
 
