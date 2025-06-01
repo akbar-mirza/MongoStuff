@@ -1,4 +1,3 @@
-import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import {
   Button,
   Chip,
@@ -27,6 +26,7 @@ import {
   Tooltip,
   useDisclosure,
 } from "@heroui/react";
+import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import React, { useEffect, useState } from "react";
 import SnapShotAPI, { TSnapShot } from "../../../api/snapshot";
 
@@ -39,7 +39,6 @@ import {
   Download,
   GitBranch,
   Hammer,
-  Loader,
   Pencil,
   Shrink,
   Tags,
