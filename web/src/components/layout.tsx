@@ -10,7 +10,8 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
-  const { getCurrentUser, user, setIsAuthModalOpen, isAuth } = useAuthStore();
+  const { getCurrentUser, user, setIsAuthModalOpen, isAuth, signOut } =
+    useAuthStore();
 
   useEffect(() => {
     getCurrentUser();
@@ -21,6 +22,9 @@ export default function Layout({ children }: LayoutProps) {
   useEffect(() => {
     if (!user && !crfToken) {
       setIsAuthModalOpen(true);
+    }
+    if (!user && crfToken) {
+      signOut();
     }
   }, [user, setIsAuthModalOpen, crfToken]);
 

@@ -39,7 +39,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
   isAuthModalOpen: false,
   setIsAuthModalOpen: (isOpen: boolean) => set({ isAuthModalOpen: isOpen }),
   signOut: async () => {
-    // await AuthAPI.LogoutRequest();
+    await AuthAPI.LogoutRequest();
     // remove all cookies
     document.cookie.split(";").forEach((cookie) => {
       const [name] = cookie.split("=");

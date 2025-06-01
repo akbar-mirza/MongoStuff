@@ -64,9 +64,8 @@ func Login(
 	user, err := services.Login(params.Username, params.Password)
 	if err != nil {
 		c.Status(400).JSON(fiber.Map{
-			"error": "invalid credentials",
+			"error": err.Error(),
 		})
-		return err
 	}
 
 	c.Cookie(&fiber.Cookie{
@@ -92,24 +91,6 @@ func Login(
 func Logout(
 	c *fiber.Ctx,
 ) error {
-	sessionToken := c.Cookies("session")
-	csrfToken := c.Cookies("csrf")
-
-	_, err := services.GetCurrentUser(sessionToken, csrfToken)
-	if err != nil {
-		c.Status(400).JSON(fiber.Map{
-			"error": "invalid credentials",
-		})
-		return err
-	}
-
-	_, err = services.GetCurrentUser(sessionToken, csrfToken)
-	if err != nil {
-		c.Status(400).JSON(fiber.Map{
-			"error": "invalid credentials",
-		})
-		return err
-	}
 
 	// remove cookies
 	c.Cookie(&fiber.Cookie{
