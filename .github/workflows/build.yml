@@ -15,9 +15,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build image
-        run: docker build -t ${{ env.CONTAINER_NAME }} .
+        run: docker build -t ${{ env.CONTAINER_NAME }}:latest .
+      - name: List Docker images
+        run: docker images
       - name: Run container
-        run: docker run -d --name ${{ env.CONTAINER_NAME }} -p ${{ env.PORT }}:${{ env.PORT }} -e MONGO_URI=${{ secrets.MONGO_URI }} ${{ env.CONTAINER_NAME }}
-
+        run: docker run -d --name ${{ env.CONTAINER_NAME }} -p ${{ env.PORT }}:${{ env.PORT }} -e MONGO_URI=${{ secrets.MONGO_URI }} ${{ env.CONTAINER_NAME }}:latest
+      - name: Get container logs
+        if: failure()
+        run: docker logs ${{ env.CONTAINER_NAME }}
       - name: Ping container
-        run: docker exec ${{env.CONTAINER_NAME}} ping -c 4 localhost
+        run: docker exec ${{ env.CONTAINER_NAME }} ping -c 4 localhost
