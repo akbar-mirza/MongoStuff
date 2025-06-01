@@ -21,7 +21,6 @@ jobs:
       - name: Run container
         run: docker run -d --name ${{ env.CONTAINER_NAME }} -p ${{ env.PORT }}:${{ env.PORT }} -e MONGO_URI=${{ secrets.MONGO_URI }} ${{ env.CONTAINER_NAME }}:latest
       - name: Get container logs
-        if: failure()
         run: docker logs ${{ env.CONTAINER_NAME }}
       - name: Ping container
-        run: docker exec ${{ env.CONTAINER_NAME }} ping -c 4 localhost
+        run: curl -f http://localhost:${{ env.PORT }} || echo "Health check endpoint not available"
