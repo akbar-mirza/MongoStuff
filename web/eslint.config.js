@@ -25,6 +25,16 @@ export default tseslint.config(
       ],
       // ES2015 module syntax is preferred over namespaces.eslint@typescript-eslint/no-namespace
       "no-namespace": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          vars: "all",
+          args: "none",
+          ignoreRestSiblings: true,
+          varsIgnorePattern: "^_",
+          caughtErrors: "none",
+        },
+      ],
     },
   }
 );
