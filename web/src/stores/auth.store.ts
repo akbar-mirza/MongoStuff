@@ -1,7 +1,7 @@
 import { toast } from "sonner";
 import { create } from "zustand";
-import { AuthAPI } from "../api/auth";
 import { ClearCookies } from "../api";
+import { AuthAPI } from "../api/auth";
 
 export type User = {
   username: string;
@@ -20,7 +20,7 @@ type AuthStore = {
   signOut: () => void;
 };
 
-export const useAuthStore = create<AuthStore>((set, get) => ({
+export const useAuthStore = create<AuthStore>((set) => ({
   user: null,
   isAuth: false,
   setUser: (user: User) => set({ user }),
