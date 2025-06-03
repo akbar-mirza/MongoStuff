@@ -1,6 +1,7 @@
 import { toast } from "sonner";
 import { create } from "zustand";
 import { AuthAPI } from "../api/auth";
+import { ClearCookies } from "../api";
 
 export type User = {
   username: string;
@@ -19,7 +20,7 @@ type AuthStore = {
   signOut: () => void;
 };
 
-export const useAuthStore = create<AuthStore>((set) => ({
+export const useAuthStore = create<AuthStore>((set, get) => ({
   user: null,
   isAuth: false,
   setUser: (user: User) => set({ user }),
@@ -29,6 +30,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     if (error?.error) {
       console.error(error);
       toast.error(error.error);
+      ClearCookies();
       set({ isAuth: false });
       set({ user: null });
       return;
@@ -41,10 +43,6 @@ export const useAuthStore = create<AuthStore>((set) => ({
   signOut: async () => {
     await AuthAPI.LogoutRequest();
     // remove all cookies
-    document.cookie.split(";").forEach((cookie) => {
-      const [name] = cookie.split("=");
-      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/`;
-    });
-    window.location.reload();
+    ClearCookies();
   },
 }));

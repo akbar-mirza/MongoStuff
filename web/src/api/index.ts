@@ -8,6 +8,13 @@ export const GetCookie = (name: string) => {
   return cookie?.split("=")[1];
 };
 
+export const ClearCookies = () => {
+  document.cookie.split(";").forEach((cookie) => {
+    const [name] = cookie.split("=");
+    document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/`;
+  });
+};
+
 const Config = {
   headers: {
     "Content-Type": "application/json",

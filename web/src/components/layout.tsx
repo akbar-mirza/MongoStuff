@@ -10,12 +10,11 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
-  const { getCurrentUser, user, setIsAuthModalOpen, isAuth, signOut } =
-    useAuthStore();
+  const { getCurrentUser, user, setIsAuthModalOpen, isAuth } = useAuthStore();
 
   useEffect(() => {
     getCurrentUser();
-  }, [getCurrentUser]);
+  }, []);
 
   const crfToken = GetCookie("csrf");
 
@@ -23,10 +22,7 @@ export default function Layout({ children }: LayoutProps) {
     if (!user && !crfToken) {
       setIsAuthModalOpen(true);
     }
-    if (!user && crfToken) {
-      signOut();
-    }
-  }, [user, setIsAuthModalOpen, crfToken]);
+  }, [user, crfToken]);
 
   return (
     <div className="flex flex-col mx-auto">
