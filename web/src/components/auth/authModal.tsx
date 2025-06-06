@@ -10,15 +10,16 @@ import {
   Tabs,
 } from "@heroui/react";
 import React, { useState } from "react";
-import { useAuthStore } from "../../stores/auth.store";
-import { AuthAPI } from "../../api/auth";
 import { toast } from "sonner";
+import { AuthAPI } from "../../api/auth";
+import { useAuthStore } from "../../stores/auth.store";
 
 const AuthModal: React.FC = () => {
   const [activeTab, setActiveTab] = useState("login");
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
-  const { isAuthModalOpen, setIsAuthModalOpen, setUser } = useAuthStore();
+  const { isAuthModalOpen, setIsAuthModalOpen, getCurrentUser } =
+    useAuthStore();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -38,19 +39,16 @@ const AuthModal: React.FC = () => {
             password: formData.password,
           });
 
-    console.log("Error:", error, data);
-
     if (data) {
       toast.success(data.message);
-      setUser(data.user);
-      useAuthStore.setState({ isAuth: true });
-      window.location.reload();
     }
+
     if (error) {
       toast.error("Invalid Credentials");
     }
-
     setLoading(false);
+
+    getCurrentUser();
   };
 
   return (
