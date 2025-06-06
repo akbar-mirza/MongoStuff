@@ -14,6 +14,7 @@ export default tseslint.config(
       globals: globals.browser,
     },
     plugins: {
+      "@typescript-eslint": tseslint.plugin,
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
     },
@@ -25,6 +26,7 @@ export default tseslint.config(
       ],
       // ES2015 module syntax is preferred over namespaces.eslint@typescript-eslint/no-namespace
       "no-namespace": "off",
+      "no-unused-vars": "off",
       "@typescript-eslint/no-unused-vars": [
         "error",
         {
@@ -32,6 +34,7 @@ export default tseslint.config(
           args: "none",
           ignoreRestSiblings: true,
           varsIgnorePattern: "^_",
+          argsIgnorePattern: "^_",
           caughtErrors: "none",
         },
       ],

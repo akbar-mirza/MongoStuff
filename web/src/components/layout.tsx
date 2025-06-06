@@ -1,4 +1,3 @@
-import { GetCookie } from "../api";
 import { useAuthStore } from "../stores/auth.store";
 import AuthModal from "./auth/authModal";
 import TopNavbar from "./navbar";
@@ -10,19 +9,11 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
-  const { getCurrentUser, user, setIsAuthModalOpen, isAuth } = useAuthStore();
+  const { getCurrentUser, user, isAuth } = useAuthStore();
 
   useEffect(() => {
     getCurrentUser();
   }, []);
-
-  const crfToken = GetCookie("csrf");
-
-  useEffect(() => {
-    if (!user && !crfToken) {
-      setIsAuthModalOpen(true);
-    }
-  }, [user, crfToken]);
 
   return (
     <div className="flex flex-col mx-auto">

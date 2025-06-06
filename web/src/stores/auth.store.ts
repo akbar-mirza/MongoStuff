@@ -28,9 +28,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
   getCurrentUser: async () => {
     const { user, error } = await AuthAPI.CurretUserRequest();
     if (error?.error) {
-      console.error(error);
       toast.error(error.error);
-      ClearCookies();
+      set({ isAuthModalOpen: true });
       set({ isAuth: false });
       set({ user: null });
       return;

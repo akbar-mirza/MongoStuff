@@ -3,6 +3,7 @@ export const API = IsDockerHost ? "/api" : "http://localhost:27018/api";
 
 export const GetCookie = (name: string) => {
   const cookie = document.cookie
+    .replace(/\s/g, "")
     .split(";")
     .find((c) => c.startsWith(`${name}=`));
   return cookie?.split("=")[1];
