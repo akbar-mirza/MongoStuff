@@ -9,6 +9,10 @@ export const GetCookie = (name: string) => {
   return cookie?.split("=")[1];
 };
 
+export const SetCookie = (name: string, value: string) => {
+  document.cookie = `${name}=${value}; path=/`;
+};
+
 export const ClearCookies = () => {
   document.cookie.split(";").forEach((cookie) => {
     const [name] = cookie.split("=");

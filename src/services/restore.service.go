@@ -7,6 +7,7 @@ import (
 	"mongostuff/src/interfaces"
 	"mongostuff/src/libs"
 	"mongostuff/src/sdk"
+	"os"
 	"strconv"
 	"time"
 
@@ -36,6 +37,48 @@ func RestoreSnapshot(
 
 	fileName := snapshotID + "_" + strconv.FormatInt(snapshot.Timestamp, 10)
 	outputFile := "./_stuffs/snapshots" + "/" + fileName
+	if snapshot.StorageID != "" {
+		fmt.Println("StorageID: ", snapshot.StorageID)
+		storage, err := GetStorage(
+			GetStorageParams{
+				StorageID: snapshot.StorageID,
+			},
+		)
+		artifact := interfaces.ArtifactUnion{
+			Key:     snapshot.Artifact.Key,
+			Expires: snapshot.Artifact.Expires,
+			URL:     snapshot.Artifact.URL,
+		}
+
+		outputPath := outputFile
+		if snapshot.Compression {
+			outputPath += ".gz"
+		}
+		// downlooad the file
+		down, err := storage.DownloadFile(artifact, outputPath)
+		if err != nil {
+			return err
+		}
+
+		isExpired := down.Expires != nil && time.Now().Unix() > *artifact.Expires
+		// update snapshot with new url
+		if isExpired {
+			fmt.Println("URL expired, updating snapshot with new URL")
+			artifact.URL = down.URL
+			// update snapshot
+			_, err := Collection.UpdateOne(
+				context.TODO(),
+				bson.M{"_id": snapshotID},
+				bson.M{"$set": bson.M{"artifact": artifact}},
+			)
+			if err != nil {
+				return err
+			}
+		}
+		fmt.Println("Downloaded file from storage")
+
+		defer os.Remove(outputPath)
+	}
 
 	// Calculate duration
 	startTime := time.Now()
