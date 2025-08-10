@@ -3,6 +3,7 @@ package interfaces
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"time"
@@ -57,7 +58,7 @@ type ArtifactUnion struct {
 // ===================
 type StorageAdapter interface {
 	UploadFile(path string, content []byte) (ArtifactUnion, error)
-	DownloadFile(path string) ([]byte, error)
+	DownloadFile(Artifact ArtifactUnion, Path string) (ArtifactUnion, error)
 	DeleteFile(path string) error
 	GetURL(key string) string
 }
@@ -76,9 +77,9 @@ func (l *LocalStorageAdapter) UploadFile(path string, content []byte) (ArtifactU
 	return ArtifactUnion{}, nil
 }
 
-func (l *LocalStorageAdapter) DownloadFile(path string) ([]byte, error) {
-	fullPath := l.Path + "/" + path
-	return os.ReadFile(fullPath)
+func (l *LocalStorageAdapter) DownloadFile(Artifact ArtifactUnion, Path string) (ArtifactUnion, error) {
+	// Create the directory if it doesn't exist
+	return ArtifactUnion{}, nil
 }
 
 func (l *LocalStorageAdapter) DeleteFile(path string) error {
@@ -183,9 +184,44 @@ func (s *S3StorageAdapter) UploadFile(path string, content []byte) (ArtifactUnio
 	}, nil
 }
 
-func (s *S3StorageAdapter) DownloadFile(path string) ([]byte, error) {
-	fmt.Printf("Downloading %s from S3 bucket %s\n", path, s.Bucket)
-	return nil, nil
+func (s *S3StorageAdapter) DownloadFile(Artifact ArtifactUnion, Path string) (ArtifactUnion, error) {
+	fmt.Printf("Downloading %s from S3 bucket %s\n", Artifact.Key, s.Bucket)
+
+	// if expired, generate new presigned URL
+	if time.Now().Unix() > *Artifact.Expires {
+		url, err := s.PreSignedURL(Artifact.Key, 60*60*24*7)
+		if err != nil {
+			return ArtifactUnion{}, err
+		}
+		Artifact.URL = url
+		Artifact.Expires = aws.Int64(time.Now().Add(7 * 24 * time.Hour).Unix())
+	}
+
+	// download from presigned URL
+	s3Client := s3.New(s.Session)
+	resp, err := s3Client.GetObject(&s3.GetObjectInput{
+		Bucket: aws.String(s.Bucket),
+		Key:    aws.String(Artifact.Key),
+	})
+	if err != nil {
+		return ArtifactUnion{}, err
+	}
+	defer resp.Body.Close()
+
+	// Create the output file
+	out, err := os.Create(Path)
+	if err != nil {
+		return ArtifactUnion{}, fmt.Errorf("error creating file: %v", err)
+	}
+	defer out.Close()
+
+	// Copy the response body directly to the file to preserve binary content
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		return ArtifactUnion{}, fmt.Errorf("error writing to file: %v", err)
+	}
+
+	return Artifact, nil
 }
 
 func (s *S3StorageAdapter) DeleteFile(path string) error {
@@ -231,9 +267,10 @@ func (r *R2StorageAdapter) UploadFile(path string, content []byte) (ArtifactUnio
 	return ArtifactUnion{}, nil
 }
 
-func (r *R2StorageAdapter) DownloadFile(path string) ([]byte, error) {
-	fmt.Printf("Downloading %s from R2 bucket %s\n", path, r.Bucket)
-	return nil, nil
+func (r *R2StorageAdapter) DownloadFile(Artifact ArtifactUnion, Path string) (ArtifactUnion, error) {
+	fmt.Printf("Downloading %s from R2 bucket %s\n", Artifact.Key, r.Bucket)
+
+	return ArtifactUnion{}, nil
 }
 
 func (r *R2StorageAdapter) DeleteFile(path string) error {
@@ -275,13 +312,13 @@ func (s *Storage) UploadFile(path string, content []byte) (ArtifactUnion, error)
 	return s.adapter.UploadFile(path, content)
 }
 
-func (s *Storage) DownloadFile(path string) ([]byte, error) {
+func (s *Storage) DownloadFile(Artifact ArtifactUnion, Path string) (ArtifactUnion, error) {
 	if s.adapter == nil {
 		if err := s.InitAdapter(); err != nil {
-			return nil, err
+			return ArtifactUnion{}, err
 		}
 	}
-	return s.adapter.DownloadFile(path)
+	return s.adapter.DownloadFile(Artifact, Path)
 }
 
 func (s *Storage) DeleteFile(path string) error {

@@ -7,13 +7,13 @@ import (
 )
 
 type MongoRestore struct {
-	URI        string
-	SourceDatabase   string
-	TargetDatabase   string
-	Collection string
-	BackupPath string
-	IsCompress bool
-	Update     bool
+	URI            string
+	SourceDatabase string
+	TargetDatabase string
+	Collection     string
+	BackupPath     string
+	IsCompress     bool
+	Update         bool
 }
 
 type MongoRestoreResponse struct {
@@ -30,7 +30,7 @@ func Restore(
 	fmt.Println("Restoring Database:", params.SourceDatabase)
 	var command = PATH + "mongorestore" + " --uri=" + params.URI
 
-	if params.SourceDatabase != "" && params.TargetDatabase!= "" {
+	if params.SourceDatabase != "" && params.TargetDatabase != "" {
 		if params.SourceDatabase != "" {
 			command += " --nsFrom=" + params.SourceDatabase
 			command += ".*"
@@ -42,11 +42,11 @@ func Restore(
 		}
 	}
 
-	if params.SourceDatabase!= "" {
+	if params.SourceDatabase != "" {
 		command += " --nsInclude=" + params.SourceDatabase
-		if params.Collection!= "" {
+		if params.Collection != "" {
 			command += "." + params.Collection
-		}else {
+		} else {
 			command += ".*"
 		}
 	}
