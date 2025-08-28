@@ -240,7 +240,8 @@ export function RenderLogs({ snapshot_id }: { snapshot_id: string }) {
 export function RestoreSnapshot({ snapshot_id }: { snapshot_id: string }) {
   const { isOpen, onOpen, onOpenChange, onClose } = useDisclosure();
 
-  const { setSnapshot, snapshot } = useSnapshotStore();
+  const { setSnapshot, findSnapshot } = useSnapshotStore();
+  const snapshot = findSnapshot(snapshot_id);
   const { connection, connectionList } = useConnectionStore();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -290,7 +291,6 @@ export function RestoreSnapshot({ snapshot_id }: { snapshot_id: string }) {
                 <p className="text-bold text-lg">
                   Are you sure you want to restore this snapshot?
                 </p>
-
                 <div className="flex items-center justify-between ">
                   <div className="flex flex-col gap-2">
                     <div className="flex gap-2 items-center">
@@ -307,7 +307,6 @@ export function RestoreSnapshot({ snapshot_id }: { snapshot_id: string }) {
                     size="sm"
                   ></Switch>
                 </div>
-
                 <Divider className="mt-4" />
                 <div className="flex items-center justify-center text-primary gap-2">
                   <Hammer size={20} />
@@ -328,27 +327,27 @@ export function RestoreSnapshot({ snapshot_id }: { snapshot_id: string }) {
                   label="Select Connection"
                   onChange={(e) => setSelectConnection(e.target.value)}
                 >
-                  {(
-                    connectionList.filter(
-                      (conn) => conn.connectionID !== connection?.connectionID
-                    ) || []
-                  ).map((connection) => (
+                  {(connectionList || []).map((connection) => (
                     <SelectItem key={connection.connectionID}>
                       {connection.name}
                     </SelectItem>
                   ))}
                 </Select>
-
                 <Select
                   label="Select DB"
                   isDisabled={snapshot?.isClusterSnapshot}
                   onChange={(e) => setDatabase(e.target.value)}
                 >
                   {(
-                    connectionList.find(
-                      (connection) =>
-                        connection.connectionID === selectConnection
-                    )?.databases || []
+                    connectionList
+                      .find(
+                        (connection) =>
+                          connection.connectionID === selectConnection
+                      )
+                      ?.databases.filter(
+                        (db) =>
+                          db.toLowerCase() !== snapshot?.database?.toLowerCase()
+                      ) || []
                   )?.map((db) => (
                     <SelectItem key={db}>{db}</SelectItem>
                   ))}
