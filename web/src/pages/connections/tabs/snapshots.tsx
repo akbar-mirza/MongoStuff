@@ -52,6 +52,34 @@ import EmptyState from "../../../components/emptyState";
 import { useConnectionStore } from "../../../stores/connection.store";
 import { useSnapshotStore } from "../../../stores/snapshot.store";
 
+// Component for live duration display during processing
+function LiveDuration({ startTimestamp }: { startTimestamp: number }) {
+  const [liveDuration, setLiveDuration] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const currentTime = Date.now();
+      const duration = currentTime - startTimestamp;
+      setLiveDuration(duration);
+    }, 1000); // Update every second
+
+    return () => clearInterval(interval);
+  }, [startTimestamp]);
+
+  const formatDuration = (duration: number) => {
+    if (duration > 60000) {
+      return (duration / 60000).toFixed(1) + "m";
+    }
+    return (duration / 1000).toFixed(0) + "s";
+  };
+
+  return (
+    <p className="text-sm text-bold text-warning">
+      {formatDuration(liveDuration)}
+    </p>
+  );
+}
+
 export function TakeSnapshotModal() {
   const { connection } = useConnectionStore();
   const { getSnapshots } = useSnapshotStore();
@@ -497,7 +525,9 @@ export const DeleteSnapshot = ({ snapshot_id }: { snapshot_id: string }) => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { connection } = useConnectionStore();
   const { getSnapshots } = useSnapshotStore();
+  const [isLoading, setIsLoading] = useState(false);
   const handleDeleteSnapshot = async () => {
+    setIsLoading(true);
     const { error } = await SnapShotAPI.DeleteSnapShotRequest(
       connection?.connectionID as string,
       snapshot_id as string
@@ -509,6 +539,7 @@ export const DeleteSnapshot = ({ snapshot_id }: { snapshot_id: string }) => {
     toast.success("Snapshot Deleted");
     getSnapshots(connection?.connectionID as string);
     onClose();
+    setIsLoading(false);
   };
   return (
     <>
@@ -537,7 +568,12 @@ export const DeleteSnapshot = ({ snapshot_id }: { snapshot_id: string }) => {
             <Button color="danger" variant="flat" onPress={onClose}>
               Close
             </Button>
-            <Button onPress={handleDeleteSnapshot} className="bg-primary-50">
+            <Button
+              onPress={handleDeleteSnapshot}
+              className="bg-primary-50"
+              isLoading={isLoading}
+              color="danger"
+            >
               Delete
             </Button>
           </ModalFooter>
@@ -627,11 +663,16 @@ export default function ConnectionSnapshots() {
             </p>
           );
         case "duration":
+          // Show live duration for processing snapshots
+          if (item.status === "Processing") {
+            return <LiveDuration startTimestamp={item.timestamp} />;
+          }
+          // Show static duration for completed snapshots
           return (
             <p className="text-sm text-bold">
               {parseInt(cellValue) > 60000
-                ? parseInt(cellValue) / 60000 + "m"
-                : parseInt(cellValue) / 1000 + "s"}
+                ? (parseInt(cellValue) / 60000).toFixed(2) + "m"
+                : (parseInt(cellValue) / 1000).toFixed(2) + "s"}
             </p>
           );
 

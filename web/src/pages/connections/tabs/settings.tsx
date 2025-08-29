@@ -41,7 +41,6 @@ export default function ConnectionSettings() {
 
   return (
     <div>
-      <h1>Settings</h1>
       <Card className="w-full">
         <CardHeader className="flex gap-3">
           <div className="flex flex-col">
