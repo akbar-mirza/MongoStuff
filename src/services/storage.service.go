@@ -57,7 +57,7 @@ type UpdateStorageParams struct {
 	StorageID string
 	Name      string
 	Type      interfaces.StorageType
-	Storage   interface{}
+	Storage   interfaces.StorageUnion
 	UserID    string
 	IsDefault bool
 }
@@ -74,10 +74,14 @@ func UpdateStorage(params UpdateStorageParams) (interfaces.Storage, error) {
 		},
 		bson.M{
 			"$set": bson.M{
-				"name":      params.Name,
-				"type":      params.Type,
-				"storageID": params.StorageID,
-				"storage":   params.Storage,
+				"name":              params.Name,
+				"type":              params.Type,
+				"storageID":         params.StorageID,
+				"storage.bucket":    params.Storage.Bucket,
+				"storage.region":    params.Storage.Region,
+				"storage.folder":    params.Storage.Folder,
+				"storage.accessKey": params.Storage.AccessKey,
+				"storage.secretKey": params.Storage.SecretKey,
 			},
 		},
 		options.FindOneAndUpdate().SetReturnDocument(options.After),

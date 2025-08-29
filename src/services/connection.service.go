@@ -241,3 +241,25 @@ func SyncConnectionDatabases(
 	return databases
 	// return connection
 }
+
+func SetDefaultStorageForConnection(
+	connectionID string,
+	defaultStorageID string,
+) error {
+	var Collection = global.GetCollection("connections")
+	_, err := Collection.UpdateOne(
+		context.TODO(),
+		bson.M{"connectionID": connectionID},
+		bson.D{
+			{Key: "$set", Value: bson.D{
+				{Key: "defaultStorageID", Value: defaultStorageID},
+			}},
+		},
+	)
+	if err != nil {
+		fmt.Println("Error updating connection")
+		fmt.Println(err)
+		return err
+	}
+	return nil
+}

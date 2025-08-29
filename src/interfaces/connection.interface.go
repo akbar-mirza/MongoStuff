@@ -16,4 +16,5 @@ type Connection struct {
 		Database    string   `json:"database"`
 		Collections []string `json:"collections"`
 	} `json:"collections"`
+	DefaultStorageID string `json:"defaultStorageID"`
 }

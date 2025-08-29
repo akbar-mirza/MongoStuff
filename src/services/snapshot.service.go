@@ -101,13 +101,39 @@ func ProcessSnapshot(
 	}
 
 	slog.Info("Saving snapshot to storage")
-	storage, err := GetDefaultStorage(
-		GetDefaultStorageParams{
-			UserID: connection.UserID,
-		},
-	)
+	var storageConfig interfaces.Storage
 
-	slog.Info("Storage:", storage)
+	if connection.DefaultStorageID != "" {
+		fmt.Println("Default storage ID:", connection.DefaultStorageID)
+		getStorage, err := GetStorage(
+			GetStorageParams{
+				StorageID: connection.DefaultStorageID,
+				UserID:    connection.UserID,
+			},
+		)
+		fmt.Println("Storage:==>", getStorage)
+		if err != nil {
+			fmt.Println("Error getting storage")
+			fmt.Println(err)
+			return
+		}
+		storageConfig = getStorage
+	}
+
+	if connection.DefaultStorageID == "" {
+		fmt.Println("No default storage ID")
+		defaultStorage, err := GetDefaultStorage(
+			GetDefaultStorageParams{
+				UserID: connection.UserID,
+			},
+		)
+		if err != nil {
+			fmt.Println("Error getting default storage")
+			fmt.Println(err)
+			return
+		}
+		storageConfig = defaultStorage
+	}
 
 	if err != nil {
 		fmt.Println("Error getting storage")
@@ -115,9 +141,10 @@ func ProcessSnapshot(
 		return
 	}
 
-	storagInstance := interfaces.Storage{
-		Type:    storage.Type,
-		Storage: storage.Storage,
+	storageInstance := interfaces.Storage{
+		Type:      storageConfig.Type,
+		StorageID: storageConfig.StorageID,
+		Storage:   storageConfig.Storage,
 	}
 
 	fileBtes, err := os.ReadFile(outputFile)
@@ -128,8 +155,8 @@ func ProcessSnapshot(
 	}
 
 	var ArtifactUnion interfaces.Artifact
-	if storage.IsDefault {
-		artifact, err := storagInstance.UploadFile(
+	if storageInstance.StorageID != "" {
+		artifact, err := storageInstance.UploadFile(
 			snapshotID,
 			fileBtes,
 		)
@@ -163,7 +190,7 @@ func ProcessSnapshot(
 				"duration":  duration.Milliseconds(), // Duration in milliseconds,
 				"size":      size,
 				"artifact":  ArtifactUnion,
-				"storageID": storage.StorageID,
+				"storageID": storageInstance.StorageID,
 			},
 		},
 	)
@@ -450,6 +477,49 @@ func DownloadSnapshot(
 	}, nil
 }
 
+func DownloadSnapshotFromStorage(
+	snapshotID string,
+) (
+	string, error) {
+	snapshot, err := GetSnapshot(snapshotID)
+	Collection := global.GetCollection(global.SnapshotsCollection)
+
+	if err != nil {
+		fmt.Println("Error getting snapshot")
+		fmt.Println(err)
+		return "", err
+	}
+
+	if snapshot.Artifact.Key != "" {
+		isExpired := snapshot.Artifact.Expires != nil && time.Now().Unix() > *snapshot.Artifact.Expires
+		// update snapshot with new url
+		if isExpired {
+			// generate new presigned url
+			storage, err := GetStorage(
+				GetStorageParams{
+					StorageID: snapshot.StorageID,
+				},
+			)
+			url, err := storage.GetPresignedURL(snapshot.Artifact.Key, 60*60*24)
+			// update snapshot
+			_, err = Collection.UpdateOne(
+				context.TODO(),
+				bson.M{"snapshotID": snapshotID},
+				bson.M{"$set": bson.M{"artifact": interfaces.Artifact{
+					URL:     url,
+					Key:     snapshot.Artifact.Key,
+					Expires: snapshot.Artifact.Expires,
+				}}},
+			)
+			if err != nil {
+				return "", err
+			}
+			return url, nil
+		}
+	}
+	return "", nil
+}
+
 func UpdateSnapshotTags(
 	snapshotID string,
 	tags []string,
@@ -471,4 +541,45 @@ func UpdateSnapshotTags(
 		return interfaces.Snapshot{}, err
 	}
 	return snapshot, nil
+}
+
+func DeleteSnapshot(
+	snapshotID string,
+) error {
+	fmt.Println("Snapshot ID--->", snapshotID)
+	var Collection = global.GetCollection(global.SnapshotsCollection)
+	snapshot, err := GetSnapshot(snapshotID)
+	if err != nil {
+		fmt.Println("Error getting snapshot")
+		fmt.Println(err)
+		return err
+	}
+	if snapshot.Artifact.Key != "" {
+		storage, err := GetStorage(
+			GetStorageParams{
+				StorageID: snapshot.StorageID,
+			},
+		)
+		if err != nil {
+			fmt.Println("Error getting storage")
+			fmt.Println(err)
+			return err
+		}
+		err = storage.DeleteFile(snapshot.Artifact.Key)
+		if err != nil {
+			fmt.Println("Error deleting file")
+			fmt.Println(err)
+			return err
+		}
+	}
+	_, err = Collection.DeleteOne(
+		context.TODO(),
+		bson.M{"snapshotID": snapshotID},
+	)
+	if err != nil {
+		fmt.Println("Error deleting snapshot")
+		fmt.Println(err)
+		return err
+	}
+	return nil
 }
