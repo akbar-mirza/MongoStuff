@@ -493,6 +493,60 @@ export function EditSnapshotTags({ snapshot_id }: { snapshot_id: string }) {
   );
 }
 
+export const DeleteSnapshot = ({ snapshot_id }: { snapshot_id: string }) => {
+  const { isOpen, onOpen, onOpenChange, onClose } = useDisclosure();
+  const { connection } = useConnectionStore();
+  const { getSnapshots } = useSnapshotStore();
+  const handleDeleteSnapshot = async () => {
+    const { error } = await SnapShotAPI.DeleteSnapShotRequest(
+      connection?.connectionID as string,
+      snapshot_id as string
+    );
+    if (error) {
+      toast.error("Error Deleting Snapshot");
+      return;
+    }
+    toast.success("Snapshot Deleted");
+    getSnapshots(connection?.connectionID as string);
+    onClose();
+  };
+  return (
+    <>
+      <Tooltip color="danger" content="Delete Snapshot">
+        <span
+          className="text-lg cursor-pointer text-danger active:opacity-50 hover:text-danger"
+          onClick={onOpen}
+        >
+          <Trash size={20} />
+        </span>
+      </Tooltip>
+      <Modal isOpen={isOpen} onClose={onClose}>
+        <ModalContent>
+          <ModalHeader>Delete Snapshot</ModalHeader>
+          <ModalBody>
+            <p>Are you sure you want to delete this snapshot?</p>
+            <p className="text-md text-red-500">
+              All data associated with this snapshot will be permanently
+              deleted.
+            </p>
+            <p className="text-sm text-yellow-500">
+              This action cannot be undone.
+            </p>
+          </ModalBody>
+          <ModalFooter>
+            <Button color="danger" variant="flat" onPress={onClose}>
+              Close
+            </Button>
+            <Button onPress={handleDeleteSnapshot} className="bg-primary-50">
+              Delete
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+    </>
+  );
+};
+
 export type Props = {
   ConnectionID: string;
 };
@@ -554,11 +608,7 @@ export default function ConnectionSnapshots() {
               </span>
             </Tooltip>
             <EditSnapshotTags snapshot_id={item.snapshotID} />
-            <Tooltip color="danger" content="Delete Snapshot">
-              <span className="text-lg cursor-pointer text-danger active:opacity-50 hover:text-danger">
-                <Trash size={20} />
-              </span>
-            </Tooltip>
+            <DeleteSnapshot snapshot_id={item.snapshotID} />
           </div>
         );
       }
