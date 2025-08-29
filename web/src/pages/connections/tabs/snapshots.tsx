@@ -494,7 +494,7 @@ export function EditSnapshotTags({ snapshot_id }: { snapshot_id: string }) {
 }
 
 export const DeleteSnapshot = ({ snapshot_id }: { snapshot_id: string }) => {
-  const { isOpen, onOpen, onOpenChange, onClose } = useDisclosure();
+  const { isOpen, onOpen, onClose } = useDisclosure();
   const { connection } = useConnectionStore();
   const { getSnapshots } = useSnapshotStore();
   const handleDeleteSnapshot = async () => {

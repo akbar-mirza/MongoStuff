@@ -5,7 +5,6 @@ import {
   Card,
   CardBody,
   CardHeader,
-  Chip,
   Input,
   Modal,
   ModalBody,

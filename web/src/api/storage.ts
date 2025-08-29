@@ -1,4 +1,4 @@
-import { Post, TErrorResp, Get, Put, Delete, Patch } from ".";
+import { Delete, Get, Patch, Post, TErrorResp } from ".";
 
 export type TStorageType = "s3" | "r2" | "local";
 
@@ -48,7 +48,7 @@ const transformStorageResponse = (storage: any): TStorage => {
       accessKey: storage.storage.accessKey,
       secretKey: storage.storage.secretKey,
       folder: storage.storage.folder,
-    }
+    },
   };
 };
 
@@ -61,16 +61,19 @@ const AddStorage = async (params: TAddStorageParams) => {
     },
     TErrorResp
   >(`storage/`, params);
-  
-  return { 
-    storage: response?.storage ? transformStorageResponse(response.storage) : null, 
-    error 
+
+  return {
+    storage: response?.storage
+      ? transformStorageResponse(response.storage)
+      : null,
+    error,
   };
 };
 
 const ListStorage = async () => {
   const [storagesResponse, error] = await Get<any[], TErrorResp>(`storage`);
-  const storages = storagesResponse?.map(storage => transformStorageResponse(storage)) || [];
+  const storages =
+    storagesResponse?.map((storage) => transformStorageResponse(storage)) || [];
   return { storages, error };
 };
 
@@ -78,8 +81,10 @@ const GetStorage = async (storageID: string) => {
   const [storageResponse, error] = await Get<any, TErrorResp>(
     `storage/${storageID}`
   );
-  
-  const storage = storageResponse ? transformStorageResponse(storageResponse) : null;
+
+  const storage = storageResponse
+    ? transformStorageResponse(storageResponse)
+    : null;
   return { storage, error };
 };
 
@@ -89,10 +94,12 @@ const UpdateStorage = async (storageID: string, params: TAddStorageParams) => {
     { storage: any },
     TErrorResp
   >(`storage/${storageID}`, params);
-  
-  return { 
-    storage: response?.storage ? transformStorageResponse(response.storage) : null, 
-    error 
+
+  return {
+    storage: response?.storage
+      ? transformStorageResponse(response.storage)
+      : null,
+    error,
   };
 };
 
@@ -114,18 +121,20 @@ const SetDefaultStorage = async (storageID: string) => {
   >(`storage/${storageID}/default`, {
     isDefault: true,
   });
-  
-  return { 
-    storage: response?.storage ? transformStorageResponse(response.storage) : null, 
-    error 
+
+  return {
+    storage: response?.storage
+      ? transformStorageResponse(response.storage)
+      : null,
+    error,
   };
 };
 
 export {
   AddStorage,
-  ListStorage,
-  GetStorage,
-  UpdateStorage,
   DeleteStorage,
+  GetStorage,
+  ListStorage,
   SetDefaultStorage,
+  UpdateStorage,
 };
