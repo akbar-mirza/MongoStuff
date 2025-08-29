@@ -1,4 +1,4 @@
-import { Get, Post, TErrorResp } from ".";
+import { Get, Patch, Post, TErrorResp } from ".";
 
 export type TConnection = {
   _id: string;
@@ -14,6 +14,7 @@ export type TConnection = {
     database: string;
     collections: string[];
   }[];
+  defaultStorageID: string;
 };
 const ListConnectionsRequest = async () => {
   const [connections, error] = await Get<
@@ -61,11 +62,26 @@ const SyncConnectionRequest = async (connectionID: string) => {
   return { connection: connection?.connection, error };
 };
 
+const SetDefaultStorageForConnectionRequest = async (
+  connectionID: string,
+  storageID: string
+) => {
+  const [connection, error] = await Patch<
+    null,
+    {
+      message: string;
+    },
+    TErrorResp
+  >(`connection/${connectionID}/default-storage/${storageID}`, null);
+  return { connection: connection?.message, error };
+};
+
 const ConnectionAPI = {
   ListConnectionsRequest,
   GetConnectionRequest,
   CreateConnectionRequest,
   SyncConnectionRequest,
+  SetDefaultStorageForConnectionRequest,
 };
 
 export default ConnectionAPI;

@@ -1,4 +1,4 @@
-import { Get, Patch, Post, TErrorResp } from ".";
+import { Delete, Get, Patch, Post, TErrorResp } from ".";
 
 export type TSnapShot = {
   connectionID: string;
@@ -105,12 +105,27 @@ const UpdateSnapshotTagsRequest = async (
   return { snapshot: snapshot?.snapshot, error };
 };
 
+const DeleteSnapShotRequest = async (
+  connectionID: string,
+  snapshotID: string
+) => {
+  const [snapshot, error] = await Delete<
+    null,
+    {
+      message: string;
+    },
+    TErrorResp
+  >(`snapshot/${connectionID}/${snapshotID}`, null);
+  return { snapshot, error };
+};
+
 const SnapShotAPI = {
   ListSnapShotRequest,
   GetSnapShotRequest,
   TakeSnapShotRequest,
   DownloadSnapShotRequest,
   UpdateSnapshotTagsRequest,
+  DeleteSnapShotRequest,
 };
 
 export default SnapShotAPI;
