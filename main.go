@@ -68,6 +68,7 @@ func routes(app *fiber.App) {
 	connectionGroup.Post("/", controllers.AddConnection)
 	connectionGroup.Get("/:ConnID/sync-db", middlewares.IsConnectionBelongToUser, controllers.SyncConnectionDatabases)
 	connectionGroup.Get("/:ConnID/status", middlewares.IsConnectionBelongToUser, controllers.GetClusterStatus)
+	connectionGroup.Patch("/:ConnID/default-storage/:StorageID", middlewares.IsConnectionBelongToUser, controllers.SetDefaultStorageForConnection)
 
 	// [Snapshot Routes]
 	snapshotGroup := api.Group("/snapshot", middlewares.Auth)
@@ -76,6 +77,8 @@ func routes(app *fiber.App) {
 	snapshotGroup.Get("/:ConnID/:SnapID", middlewares.IsConnectionBelongToUser, controllers.GetSnapshot)
 	snapshotGroup.Get("/:ConnID/:SnapID/download", middlewares.IsConnectionBelongToUser, controllers.DownloadSnapshot)
 	snapshotGroup.Patch("/:ConnID/:SnapID/tags", middlewares.IsConnectionBelongToUser, controllers.UpdateSnapshotTags)
+	snapshotGroup.Delete("/:ConnID/:SnapID", middlewares.IsConnectionBelongToUser, controllers.DeleteSnapshot)
+	snapshotGroup.Get("/:ConnID/:SnapID/download", middlewares.IsConnectionBelongToUser, controllers.DownloadSnapshotFromStorage)
 
 	// [Restore Routes]
 	restoreGroup := api.Group("/restore", middlewares.Auth)

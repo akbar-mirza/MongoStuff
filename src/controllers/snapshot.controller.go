@@ -90,6 +90,23 @@ func DownloadSnapshot(
 	)
 }
 
+func DownloadSnapshotFromStorage(
+	c *fiber.Ctx,
+) error {
+	SnapID := c.Params("SnapID")
+	downloadPath, error := services.DownloadSnapshotFromStorage(SnapID)
+	slog.Info("Downloading Snapshot from Storage", "SnapshotID", SnapID, "OutputFile", downloadPath)
+	if error != nil {
+		return c.JSON(fiber.Map{
+			"error": error.Error(),
+		})
+	}
+	return c.JSON(fiber.Map{
+		"message": "Snapshot has been downloaded from storage",
+		"url":     downloadPath,
+	})
+}
+
 func UpdateSnapshotTags(
 	c *fiber.Ctx,
 ) error {
@@ -110,4 +127,19 @@ func UpdateSnapshotTags(
 		})
 	}
 	return c.JSON(snap)
+}
+
+func DeleteSnapshot(
+	c *fiber.Ctx,
+) error {
+	SnapID := c.Params("SnapID")
+	err := services.DeleteSnapshot(SnapID)
+	if err != nil {
+		return c.JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+	return c.JSON(fiber.Map{
+		"message": "Snapshot has been deleted",
+	})
 }

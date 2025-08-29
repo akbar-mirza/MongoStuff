@@ -61,6 +61,7 @@ type StorageAdapter interface {
 	DownloadFile(Artifact ArtifactUnion, Path string) (ArtifactUnion, error)
 	DeleteFile(path string) error
 	GetURL(key string) string
+	GetPresignedURL(key string, expires int64) (string, error)
 }
 
 // ===================
@@ -90,6 +91,10 @@ func (l *LocalStorageAdapter) DeleteFile(path string) error {
 func (l *LocalStorageAdapter) GetURL(key string) string {
 	// Construct the URL for the object in the local folder
 	return ""
+}
+
+func (l *LocalStorageAdapter) GetPresignedURL(key string, expires int64) (string, error) {
+	return "", nil
 }
 
 // ===================
@@ -224,8 +229,19 @@ func (s *S3StorageAdapter) DownloadFile(Artifact ArtifactUnion, Path string) (Ar
 	return Artifact, nil
 }
 
-func (s *S3StorageAdapter) DeleteFile(path string) error {
-	fmt.Printf("Deleting %s from S3 bucket %s\n", path, s.Bucket)
+func (s *S3StorageAdapter) GetPresignedURL(key string, expires int64) (string, error) {
+	return s.PreSignedURL(key, expires)
+}
+
+func (s *S3StorageAdapter) DeleteFile(key string) error {
+	s3Client := s3.New(s.Session)
+	_, err := s3Client.DeleteObject(&s3.DeleteObjectInput{
+		Bucket: aws.String(s.Bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return fmt.Errorf("error deleting file: %v", err)
+	}
 	return nil
 }
 
@@ -283,6 +299,10 @@ func (r *R2StorageAdapter) GetURL(key string) string {
 	return ""
 }
 
+func (r *R2StorageAdapter) GetPresignedURL(key string, expires int64) (string, error) {
+	return "", nil
+}
+
 // ===================
 // Factory to set adapter
 // ===================
@@ -337,4 +357,13 @@ func (s *Storage) GetURL(key string) string {
 		}
 	}
 	return s.adapter.GetURL(key)
+}
+
+func (s *Storage) GetPresignedURL(key string, expires int64) (string, error) {
+	if s.adapter == nil {
+		if err := s.InitAdapter(); err != nil {
+			return "", err
+		}
+	}
+	return s.adapter.GetPresignedURL(key, expires)
 }

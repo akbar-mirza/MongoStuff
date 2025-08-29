@@ -78,3 +78,19 @@ func GetClusterStatus(
 		"status": Status,
 	})
 }
+
+func SetDefaultStorageForConnection(
+	c *fiber.Ctx,
+) error {
+	ConnID := c.Params("ConnID")
+	StorageID := c.Params("StorageID")
+	err := services.SetDefaultStorageForConnection(ConnID, StorageID)
+	if err != nil {
+		return c.JSON(fiber.Map{
+			"error": err,
+		})
+	}
+	return c.JSON(fiber.Map{
+		"message": "Default storage set",
+	})
+}

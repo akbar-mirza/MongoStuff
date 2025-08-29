@@ -68,7 +68,7 @@ func RestoreSnapshot(
 			// update snapshot
 			_, err := Collection.UpdateOne(
 				context.TODO(),
-				bson.M{"_id": snapshotID},
+				bson.M{"snapshotID": snapshotID},
 				bson.M{"$set": bson.M{"artifact": artifact}},
 			)
 			if err != nil {
