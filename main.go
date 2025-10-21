@@ -6,6 +6,7 @@ import (
 	"mongostuff/src/controllers"
 	global "mongostuff/src/globals"
 	"mongostuff/src/middlewares"
+	"mongostuff/src/services"
 	"os"
 
 	"github.com/gofiber/fiber/v2"
@@ -23,19 +24,17 @@ func init() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	slog.SetDefault(logger)
 
-	// Local Storage
-	// if _stuffs/snapshots folder doesn't exist, create it
-	if _, err := os.Stat("./_stuffs"); os.IsNotExist(err) {
-		err := os.Mkdir("./_stuffs", 0755) // 0755 is the octal representation of rwxr-xr-x
-		if err != nil {
-			slog.Error("Error creating _stuffs directory", "error", err)
+	folderRequired := []string{"./_stuffs", "./_stuffs/snapshots", "./_stuffs/backups"}
+
+	// check if folder exists
+	for _, folder := range folderRequired {
+		if _, err := os.Stat(folder); os.IsNotExist(err) {
+			err := os.Mkdir(folder, 0755) // 0755 is the octal representation of rwxr-xr-x
+			if err != nil {
+				slog.Error("Error creating _stuffs directory", "error", err)
+			}
+			slog.Info("Created _stuffs/snapshots directory")
 		}
-		slog.Info("Created _stuffs/snapshots directory")
-		err = os.Mkdir("./_stuffs/snapshots", 0755)
-		if err != nil {
-			slog.Error("Error creating _stuffs directory", "error", err)
-		}
-		slog.Info("Created _stuffs/snapshots directory")
 	}
 
 }
@@ -83,8 +82,9 @@ func routes(app *fiber.App) {
 	// [Restore Routes]
 	restoreGroup := api.Group("/restore", middlewares.Auth)
 	restoreGroup.Get("/:ConnID", middlewares.IsConnectionBelongToUser, controllers.GetRestores)
-	restoreGroup.Post("/:ConnID/:SnapID", middlewares.IsConnectionBelongToUser, controllers.RestoreSnapshot)
+	restoreGroup.Post("/:ConnID/:SnapID/snapshot", middlewares.IsConnectionBelongToUser, controllers.RestoreSnapshot)
 	restoreGroup.Get("/:ConnID/:RestoreID", middlewares.IsConnectionBelongToUser, controllers.GetRestore)
+	restoreGroup.Post("/:ConnID/:BackupID/backup", middlewares.IsConnectionBelongToUser, controllers.RestoreBackup)
 
 	// [Auth Routes]
 	authGroup := api.Group("/auth")
@@ -101,6 +101,21 @@ func routes(app *fiber.App) {
 	storageGroup.Patch("/:StorageID", controllers.UpdateStorage)
 	storageGroup.Delete("/:StorageID", controllers.DeleteStorage)
 	storageGroup.Patch("/:StorageID/default", controllers.SetDefaultStorage)
+
+	// [Backup Policies]
+	backupPolicyGroup := api.Group("/backup-policy", middlewares.Auth)
+	backupPolicyGroup.Post("/:ConnID", middlewares.IsConnectionBelongToUser, controllers.CreateBackupPolicy)
+	backupPolicyGroup.Get("/:ConnID", middlewares.IsConnectionBelongToUser, controllers.GetBackupPolicies)
+	backupPolicyGroup.Get("/:ConnID/:BackupPolicyID", middlewares.IsConnectionBelongToUser, controllers.GetBackupPolicy)
+	backupPolicyGroup.Patch("/:ConnID/:BackupPolicyID", middlewares.IsConnectionBelongToUser, controllers.UpdateBackupPolicy)
+	backupPolicyGroup.Delete("/:ConnID/:BackupPolicyID", middlewares.IsConnectionBelongToUser, controllers.DeleteBackupPolicy)
+	backupPolicyGroup.Put("/:ConnID/:BackupPolicyID/trigger", middlewares.IsConnectionBelongToUser, controllers.TriggerBackup)
+
+
+	// [Backup]
+	backupGroup := api.Group("/backup", middlewares.Auth)
+	backupGroup.Get("/:ConnID", middlewares.IsConnectionBelongToUser, controllers.BackupsForConnection)
+	backupGroup.Get("/:ConnID/:BackupPolicyID", middlewares.IsConnectionBelongToUser, controllers.BackupsForPolicy)
 
 	// Serve Static Files
 	app.Static("/", "./web/dist", fiber.Static{
@@ -129,11 +144,12 @@ func main() {
 	}
 
 	routes(app)
+	services.InitCron()
+
 	if err := app.Listen(
 		":" + os.Getenv("PORT"),
 	); err != nil {
 		panic(err)
 	}
 	fmt.Println("Server started on port " + os.Getenv("PORT"))
-
 }
