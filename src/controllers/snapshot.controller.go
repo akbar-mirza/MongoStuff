@@ -26,7 +26,7 @@ func TakSnapshot(
 		return err
 	}
 
-	snap, err := services.TakeSnapshotAsyc(
+	snap, err := services.TakeSnapshotAsync(
 		services.TakSnapshotParams{
 			ConnectionID: ConnID,
 			Database:     libs.FallBackString(body.Database, ""),

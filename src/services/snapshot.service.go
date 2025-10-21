@@ -103,6 +103,7 @@ func ProcessSnapshot(
 	slog.Info("Saving snapshot to storage")
 	var storageConfig interfaces.Storage
 
+	// When connection has DefaultStorageID, use it
 	if connection.DefaultStorageID != "" {
 		fmt.Println("Default storage ID:", connection.DefaultStorageID)
 		getStorage, err := GetStorage(
@@ -120,6 +121,7 @@ func ProcessSnapshot(
 		storageConfig = getStorage
 	}
 
+	//	If connection has no default storage ID, use the global default storage
 	if connection.DefaultStorageID == "" {
 		fmt.Println("No default storage ID")
 		defaultStorage, err := GetDefaultStorage(
@@ -196,7 +198,7 @@ func ProcessSnapshot(
 	)
 }
 
-func TakeSnapshotAsyc(params TakSnapshotParams) (interfaces.Snapshot, error) {
+func TakeSnapshotAsync(params TakSnapshotParams) (interfaces.Snapshot, error) {
 	var Collection = global.GetCollection(global.SnapshotsCollection)
 
 	_, err := GetConnection(
@@ -546,7 +548,6 @@ func UpdateSnapshotTags(
 func DeleteSnapshot(
 	snapshotID string,
 ) error {
-	fmt.Println("Snapshot ID--->", snapshotID)
 	var Collection = global.GetCollection(global.SnapshotsCollection)
 	snapshot, err := GetSnapshot(snapshotID)
 	if err != nil {
