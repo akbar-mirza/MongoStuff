@@ -28,9 +28,9 @@ func UnitToCron(value int, unit TimeUnit) (string, error) {
 	case Minute:
 		return fmt.Sprintf("0 */%d * * * *", value), nil
 	case Hour:
-		return fmt.Sprintf("0 */%d * * *", value), nil
+		return fmt.Sprintf("0 0 */%d * * *", value), nil
 	case Day:
-		return fmt.Sprintf("0 0 */%d * *", value), nil
+		return fmt.Sprintf("0 0 0 */%d * *", value), nil
 	default:
 		return "", fmt.Errorf("unsupported time unit: %s", unit)
 	}
