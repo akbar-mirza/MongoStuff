@@ -55,6 +55,49 @@ func RestoreSnapshot(
 
 }
 
+func RestoreBackup(
+	c *fiber.Ctx,
+) error {
+	connID := c.Params("ConnID")
+	backupID := c.Params("BackupID")
+	
+	type Request struct {
+		Database   string `json:"database"`
+		Collection string `json:"collection"`
+		Update     bool   `json:"update"`
+	}
+
+	body := new(Request)
+
+	if err := c.BodyParser(body); err != nil {
+		return err
+	}
+
+	err := services.RestoreBackup(
+		connID,
+		backupID,
+		"",
+		libs.FallBackString(
+			body.Database,
+			"",
+		),
+		libs.FallBackString(
+			body.Collection,
+			"",
+		),
+		body.Update,
+	)
+	if err != nil {
+		return c.JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "Backup restored",
+	})
+}
+
 func GetRestores(
 	c *fiber.Ctx,
 ) error {

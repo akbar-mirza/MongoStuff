@@ -10,13 +10,13 @@ import (
 )
 
 const (
-	ConnectionsCollection  = "connections"
-	SnapshotsCollection    = "snapshots"
-	UsersCollection        = "users"
-	RestoresCollection     = "restores"
-	StoragesCollection     = "storages"
-	BackupsCollection      = "backups"
-	BackupPolicyCollection = "backup-policy"
+	ConnectionsCollection    = "connections"
+	SnapshotsCollection      = "snapshots"
+	UsersCollection          = "users"
+	RestoresCollection       = "restores"
+	StoragesCollection       = "storages"
+	BackupsCollection        = "backups"
+	BackupPoliciesCollection = "backup-policies"
 )
 
 // Replace the placeholder with your Atlas connection string

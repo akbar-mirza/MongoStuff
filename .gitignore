@@ -4,6 +4,7 @@ node_modules
 /tmp
 .stuffs
 _stuffs
+comp_backups
 bin
 .DS_Store
 

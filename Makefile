@@ -12,3 +12,6 @@ backend-dev:
 dev:
 	@echo "Starting Dev Server"
 	@make web-dev & make backend-dev
+
+build-docker:
+	docker build -t mongo-stuff .
