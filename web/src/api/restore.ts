@@ -49,7 +49,31 @@ export const RestoreSnapshot = async (params: {
       restore: TRestore;
       error: string;
     }
-  >(`restore/${connectionID}/${snapshotID}`, {
+  >(`restore/${connectionID}/${snapshotID}/snapshot`, {
+    database,
+    collection,
+    update,
+  });
+  return { restore, error };
+};
+
+export const RestoreBackup = async (params: {
+  connectionID: string;
+  backupID: string;
+  database?: string;
+  collection?: string;
+  update?: boolean;
+}) => {
+  const { connectionID, backupID, database, collection, update } = params;
+  const [restore, error] = await Post<
+    object,
+    TErrorResp,
+    {
+      message: string;
+      restore: TRestore;
+      error: string;
+    }
+  >(`restore/${connectionID}/${backupID}/backup`, {
     database,
     collection,
     update,
@@ -61,6 +85,7 @@ const RestoreAPI = {
   ListRestoreRequest,
   GetRestoreRequest,
   RestoreSnapshot,
+  RestoreBackup,
 };
 
 export default RestoreAPI;

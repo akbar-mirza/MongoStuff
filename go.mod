@@ -6,6 +6,7 @@ require (
 	github.com/aws/aws-sdk-go v1.55.7
 	github.com/gofiber/fiber/v2 v2.52.5
 	github.com/joho/godotenv v1.5.1
+	github.com/robfig/cron/v3 v3.0.1
 	go.mongodb.org/mongo-driver v1.17.1
 	golang.org/x/crypto v0.36.0
 )

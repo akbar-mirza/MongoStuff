@@ -143,6 +143,131 @@ func RestoreSnapshot(
 	return nil
 }
 
+func RestoreBackup(
+	connectionID string,
+	backupID string,
+	sourceDatabase string,
+	targetDatabase string,
+	collection string,
+	update bool,
+) error {
+	var Collection = global.GetCollection(global.RestoresCollection)
+	backup, backup_err := GetBackup(backupID)
+	var backupPolicy interfaces.BackupPolicy
+	backupPolicy, backupPolicy_err := GetBackUpPolicy(backup.BackupPolicyID, nil)
+	if backupPolicy_err != nil {
+		return backupPolicy_err
+	}
+	connection, conn_err := GetConnection(connectionID)
+
+	if backup_err != nil {
+		return backup_err
+	}
+	if conn_err != nil {
+		return conn_err
+	}
+
+	fileName := backupID + "_" + strconv.FormatInt(backup.Timestamp, 10)
+	outputFile := "./_stuffs/backups" + "/" + fileName
+	if backup.StorageID != "" {
+		fmt.Println("StorageID: ", backup.StorageID)
+		storage, err := GetStorage(
+			GetStorageParams{
+				StorageID: backup.StorageID,
+			},
+		)
+		outputPath := outputFile
+		if backupPolicy.Compression {
+			outputPath += ".gz"
+		}
+		down, err := storage.DownloadFile(interfaces.ArtifactUnion(backup.Artifact), outputPath)
+		if err != nil {
+			return err
+		}
+
+		isExpired := down.Expires != nil && time.Now().Unix() > *backup.Artifact.Expires
+		// update snapshot with new url
+		if isExpired {
+			fmt.Println("URL expired, updating snapshot with new URL")
+			backup.Artifact.URL = down.URL
+			// update snapshot
+			_, err := Collection.UpdateOne(
+				context.TODO(),
+				bson.M{"backupID": backupID},
+				bson.M{"$set": bson.M{"artifact": backup.Artifact}},
+			)
+			if err != nil {
+				return err
+			}
+		}
+		fmt.Println("Downloaded file from storage")
+
+		defer os.Remove(outputPath)
+	}
+
+	// Calculate duration
+	startTime := time.Now()
+	restoreRes := sdk.Restore(
+		sdk.MongoRestore{
+			URI:            connection.URI,
+			SourceDatabase: libs.FallBackString(sourceDatabase, backupPolicy.Database),
+			TargetDatabase: libs.FallBackString(targetDatabase, ""),
+			Collection:     libs.FallBackString(collection, backupPolicy.Collection),
+			BackupPath:     outputFile,
+			IsCompress:     backupPolicy.Compression,
+			Update:         update || false,
+		},
+	)
+
+	endTime := time.Now()
+	duration := endTime.UnixMilli() - startTime.UnixMilli()
+
+	var status = func() string {
+		if restoreRes.ErrorStr != "" {
+			return "Failed"
+		}
+		return "Success"
+	}()
+
+	var restoreParams = interfaces.Restore{
+		Timestamp:               time.Now().UnixMilli(),
+		ConnectionID:            connectionID,
+		RestoreConnectionID:     connectionID,
+		BackupID:              backupID,
+		Logs:                    libs.FallBackString(restoreRes.ErrorStr, restoreRes.Output),
+		Status:                  status,
+		Duration:                duration,
+		Database:                libs.FallBackString(sourceDatabase, backupPolicy.Database),
+		TargetDatabase:          targetDatabase,
+		Collection:              collection,
+		RestoreID:               libs.RandomString("restore_", 12),
+		RestoreToDiffConnection: backupPolicy.ConnectionID != connectionID,
+	}
+
+	_, err := Collection.InsertOne(
+		context.TODO(),
+		bson.M{
+			"connectionID":            restoreParams.ConnectionID,
+			"restoreConnectionID":     restoreParams.RestoreConnectionID,
+			"backupID":              restoreParams.BackupID,
+			"database":                restoreParams.Database,
+			"targetDatabase":          restoreParams.TargetDatabase,
+			"collection":              restoreParams.Collection,
+			"timestamp":               restoreParams.Timestamp,
+			"status":                  restoreParams.Status,
+			"logs":                    restoreParams.Logs,
+			"duration":                restoreParams.Duration,
+			"restoreID":               restoreParams.RestoreID,
+			"restoreToDiffConnection": restoreParams.RestoreToDiffConnection,
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func GetRestores(
 	connectionID string,
 ) interface{} {

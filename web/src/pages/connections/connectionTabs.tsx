@@ -4,13 +4,20 @@ import {
   DatabaseBackup,
   HardDrive,
   LayoutDashboard,
+  Scroll,
   Settings,
 } from "lucide-react";
 // import { GalleryIcon } from "./GalleryIcon";
 // import { MusicIcon } from "./MusicIcon";
 // import { VideoIcon } from "./VideoIcon";
 
-type Pages = "Overview" | "Snapshots" | "Backups" | "Restores" | "Settings";
+type Pages =
+  | "Overview"
+  | "Snapshots"
+  | "BackupsPolicies"
+  | "Backups"
+  | "Restores"
+  | "Settings";
 type Props = {
   Pages: {
     [K in Pages]: React.FC;
@@ -53,6 +60,17 @@ export default function ConnectionTabs(props: Props) {
           }
         >
           <props.Pages.Snapshots />
+        </Tab>
+        <Tab
+          key="backups-policies"
+          title={
+            <div className="flex items-center space-x-2">
+              <Scroll size={18} />
+              <span>Backups Policies</span>
+            </div>
+          }
+        >
+          <props.Pages.BackupsPolicies />
         </Tab>
         <Tab
           key="backups"

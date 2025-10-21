@@ -17,9 +17,9 @@ import {
   TableHeader,
   TableRow,
   Tooltip,
-  useDisclosure
+  useDisclosure,
 } from "@heroui/react";
-import { Terminal } from "lucide-react";
+import { Calendar, Clock, Terminal, Timer } from "lucide-react";
 import React, { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { TRestore } from "../../../api/restore";
@@ -27,13 +27,10 @@ import EmptyState from "../../../components/emptyState";
 import { useConnectionStore } from "../../../stores/connection.store";
 import { useRestoreStore } from "../../../stores/restore.store";
 
-
-
-
 export function RenderLogs({ restore_id }: { restore_id: string }) {
   const { isOpen, onOpen, onOpenChange, onClose } = useDisclosure();
 
- const { getRestore,restore,setRestore } = useRestoreStore();
+  const { getRestore, restore, setRestore } = useRestoreStore();
   const { connection } = useConnectionStore();
 
   useEffect(() => {
@@ -46,14 +43,19 @@ export function RenderLogs({ restore_id }: { restore_id: string }) {
   return (
     <>
       <Tooltip content="View Logs">
-      <span
-        className="text-lg cursor-pointer active:opacity-50"
-        onClick={onOpen}
-      >
-        <Terminal size={20} />
-      </span>
+        <span
+          className="text-lg cursor-pointer active:opacity-50"
+          onClick={onOpen}
+        >
+          <Terminal size={20} />
+        </span>
       </Tooltip>
-      <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="5xl" scrollBehavior="inside">
+      <Modal
+        isOpen={isOpen}
+        onOpenChange={onOpenChange}
+        size="5xl"
+        scrollBehavior="inside"
+      >
         <ModalContent>
           <ModalHeader className="flex gap-2">
             <Terminal size={20} />
@@ -95,7 +97,7 @@ export default function ConnectionRestores() {
   }[] = [
     { key: "restoreID", label: "Restore ID" },
     { key: "type", label: "Type" },
-    {key: "restoreFrom", label: "Restore From"},
+    { key: "restoreFrom", label: "Restore From" },
     { key: "database", label: "Database" },
     { key: "timestamp", label: "Timestamp" },
     { key: "status", label: "Status" },
@@ -107,43 +109,57 @@ export default function ConnectionRestores() {
     getRestores(id as string);
   }, [id]);
 
-
-  const statusColorMap: { [key in TRestore["status"]]: string } = {
+  const statusColorMap: {
+    [key: string]: "success" | "danger" | "warning" | "default";
+  } = {
     Success: "success",
     Failed: "danger",
+    Processing: "warning",
+    Queued: "default",
   };
 
   const renderCell = React.useCallback(
-    (item: TRestore, columnKey: keyof TRestore | 'actions' | "restoreFrom") => {
-      if (columnKey === 'actions') {
+    (item: TRestore, columnKey: keyof TRestore | "actions" | "restoreFrom") => {
+      if (columnKey === "actions") {
         return (
           <div className="flex gap-3">
-              <RenderLogs restore_id={item.restoreID} />
+            <RenderLogs restore_id={item.restoreID} />
           </div>
         );
       }
-      
+
       const cellValue = item[columnKey as keyof TRestore]?.toString() || "";
 
       switch (columnKey) {
         case "timestamp":
           return (
-            <p className="text-sm capitalize text-bold">
-             {new Date(parseInt(cellValue)).toDateString() +
-                " " +
-                "(" + new Date(parseInt(cellValue)).toLocaleTimeString() + ")"
-                }
-            </p>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-1">
+                <Calendar size={14} />
+                <p className="text-sm">
+                  {new Date(item.timestamp).toDateString()}
+                </p>
+              </div>
+              <div className="flex items-center gap-1">
+                <Clock size={14} />
+                <p className="text-xs text-default-500">
+                  {new Date(item.timestamp).toLocaleTimeString()}
+                </p>
+              </div>
+            </div>
           );
         case "duration":
           return (
-            <p className="text-sm text-bold">
-              {parseInt(cellValue) > 60000
-                ? parseInt(cellValue) / 60000 + "m"
-                : parseInt(cellValue) / 1000 + "s"}
-            </p>
+            <div className="flex items-center gap-1">
+              <Timer size={14} />
+              <p className="text-sm">
+                {item.duration > 60000
+                  ? (item.duration / 60000).toFixed(2) + "m"
+                  : (item.duration / 1000).toFixed(2) + "s"}
+              </p>
+            </div>
           );
-        
+
         case "restoreFrom":
           return (
             <Link size="sm" className="text-primary" showAnchorIcon>
@@ -154,20 +170,26 @@ export default function ConnectionRestores() {
         case "status":
           return (
             <Chip
-              className="capitalize"
-              color={statusColorMap[item.status] as "success" | "danger"}
-              size="sm"
+              className="capitalize gap-1 border-0"
+              color={statusColorMap[item.status]}
+              size="md"
               variant="dot"
             >
-              {cellValue}
+              {item.status}
             </Chip>
           );
 
         case "restoreID":
           return (
-            <Chip size="sm" variant="solid">
-              {cellValue}
-            </Chip>
+            <div className="flex flex-col">
+              <Chip
+                size="sm"
+                variant="light"
+                className="text-sm text-foreground-600"
+              >
+                {item.restoreID.split("_")[1]}
+              </Chip>
+            </div>
           );
 
         case "type":
@@ -180,8 +202,7 @@ export default function ConnectionRestores() {
               {cellValue?.length ? cellValue : "Cluster"}
             </Chip>
           );
-        
-        
+
         default:
           return cellValue;
       }
@@ -202,76 +223,73 @@ export default function ConnectionRestores() {
 
   return (
     <div className="w-full">
-     
       <Spacer y={4} />
-      {
-        restoreList?.length > 0 && (
-                <Table
-        aria-label="Restore Table"
-        bottomContent={
-          <div className="flex justify-center w-full">
-            <Pagination
-              isCompact
-              showControls
-              showShadow
-              color="default"
-              page={page}
-              total={pages}
-              onChange={(page) => setPage(page)}
-            />
-          </div>
-        }
-      >
-        <TableHeader columns={columns}>
-          {(column) => (
-            <TableColumn key={column.key}>{column.label}</TableColumn>
-          )}
-        </TableHeader>
-        <TableBody
-          items={
-            items.map((item) => ({
-              ...item,
-              actions: "",
-              type: item?.snapshotID !== "" ? "Snapshot" : "Backup",
-              restoreFrom: item?.snapshotID?.length
-                ? item?.snapshotID
-                : item?.backupID,
-            })) || []
-          }
-        >
-          {(item) => (
-            <TableRow key={item?.restoreID}>
-              {(columnKey) => (
-                <TableCell>
-                  {renderCell(item as TRestore, columnKey as keyof TRestore)}
-                </TableCell>
-              )}
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
-        )
-}
-      {
-        restoreList?.length === 0 && (
-          <div>
-            <div className="flex flex-col items-center justify-center h-80">
-              <EmptyState
-                Icon={ <DotLottieReact
-                src="https://lottie.host/281813e4-12ea-4257-a041-69fc069edafe/dQopTPxL06.lottie"
-                loop
-                autoplay
-                backgroundColor="transparent"
-              />}
-                Title="Nothing to see here....."
-                Description="Start a restore to see something here, meanwhile let me sleep."
-                TitleClassName="-translate-y-20"
-                DescriptionClassName="-translate-y-20"
+      {restoreList?.length > 0 && (
+        <Table
+          aria-label="Restore Table"
+          bottomContent={
+            <div className="flex justify-center w-full">
+              <Pagination
+                isCompact
+                showControls
+                showShadow
+                color="default"
+                page={page}
+                total={pages}
+                onChange={(page) => setPage(page)}
               />
             </div>
+          }
+        >
+          <TableHeader columns={columns}>
+            {(column) => (
+              <TableColumn key={column.key}>{column.label}</TableColumn>
+            )}
+          </TableHeader>
+          <TableBody
+            items={
+              items.map((item) => ({
+                ...item,
+                actions: "",
+                type: item?.snapshotID !== "" ? "Snapshot" : "Backup",
+                restoreFrom: item?.snapshotID?.length
+                  ? item?.snapshotID
+                  : item?.backupID,
+              })) || []
+            }
+          >
+            {(item) => (
+              <TableRow key={item?.restoreID}>
+                {(columnKey) => (
+                  <TableCell>
+                    {renderCell(item as TRestore, columnKey as keyof TRestore)}
+                  </TableCell>
+                )}
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      )}
+      {restoreList?.length === 0 && (
+        <div>
+          <div className="flex flex-col items-center justify-center h-80">
+            <EmptyState
+              Icon={
+                <DotLottieReact
+                  src="https://lottie.host/281813e4-12ea-4257-a041-69fc069edafe/dQopTPxL06.lottie"
+                  loop
+                  autoplay
+                  backgroundColor="transparent"
+                />
+              }
+              Title="Nothing to see here....."
+              Description="Start a restore to see something here, meanwhile let me sleep."
+              TitleClassName="-translate-y-20"
+              DescriptionClassName="-translate-y-20"
+            />
           </div>
-        )
-      }
+        </div>
+      )}
     </div>
   );
 }
