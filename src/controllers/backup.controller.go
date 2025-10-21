@@ -195,7 +195,7 @@ func BackupsForPolicy(c *fiber.Ctx) error {
 	backupPolicyID := c.Params("BackupPolicyID")
 	connectionID := c.Params("ConnID")
 
-	backups, err := services.GetBackUpLogs(backupPolicyID, connectionID)
+	backups, err := services.GetBackUpLogs(connectionID, backupPolicyID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
