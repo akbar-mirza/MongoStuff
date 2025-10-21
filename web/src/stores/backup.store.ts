@@ -129,7 +129,7 @@ export const useBackupStore = create<BackupStore>((set, get) => ({
     policy: Omit<TBackupPolicy, "backupPolicyID" | "connectionID" | "isDeleted">
   ) => {
     set({ isCreating: true });
-    const { backupPolicy, error } = await BackupAPI.CreateBackupPolicyRequest(
+    const { error } = await BackupAPI.CreateBackupPolicyRequest(
       connectionID,
       policy
     );
@@ -153,7 +153,7 @@ export const useBackupStore = create<BackupStore>((set, get) => ({
     policy: Partial<Omit<TBackupPolicy, "backupPolicyID" | "connectionID">>
   ) => {
     set({ isUpdating: true });
-    const { backupPolicy, error } = await BackupAPI.UpdateBackupPolicyRequest(
+    const { error } = await BackupAPI.UpdateBackupPolicyRequest(
       connectionID,
       backupPolicyID,
       policy
