@@ -685,7 +685,7 @@ export default function ConnectionSnapshots() {
               {parseInt(cellValue) > 60000
                 ? (parseInt(cellValue) / 60000).toFixed(2) + "m"
                 : (parseInt(cellValue) / 1000).toFixed(2) + "s"}
-            </p>
+            </div>
           );
 
         case "size":
