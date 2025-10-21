@@ -33,13 +33,17 @@ import SnapShotAPI, { TSnapShot } from "../../../api/snapshot";
 import {
   Boxes,
   Cable,
+  Calendar,
   Camera,
+  Clock,
   Database,
   DatabaseBackup,
   Download,
   GitBranch,
   Hammer,
+  HardDrive,
   Pencil,
+  Timer,
   Shrink,
   Tags,
   Terminal,
@@ -618,30 +622,39 @@ export default function ConnectionSnapshots() {
       switch (columnKey) {
         case "timestamp":
           return (
-            <p className="text-sm capitalize text-bold">
-              {new Date(parseInt(cellValue)).toDateString() +
-                " " +
-                "(" +
-                new Date(parseInt(cellValue)).toLocaleTimeString() +
-                ")"}
-            </p>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-1">
+                <Calendar size={14} />
+                <p className="text-sm">
+                  {new Date(item.timestamp).toDateString()}
+                </p>
+              </div>
+              <div className="flex items-center gap-1">
+                <Clock size={14} />
+                <p className="text-xs text-default-500">
+                  {new Date(item.timestamp).toLocaleTimeString()}
+                </p>
+              </div>
+            </div>
           );
         case "duration":
           return (
-            <p className="text-sm text-bold">
+            <div className="flex items-center gap-1">
+              <Timer size={14} />
               {parseInt(cellValue) > 60000
                 ? parseInt(cellValue) / 60000 + "m"
                 : parseInt(cellValue) / 1000 + "s"}
-            </p>
+            </div>
           );
 
         case "size":
           return (
             <span className="flex gap-1 items-center">
+              <HardDrive size={14} />
               <p className="text-sm text-bold">
                 {parseInt(cellValue) / 1024 > 1024
-                  ? (parseInt(cellValue) / 1024 / 1024).toFixed(2) + " mb"
-                  : (parseInt(cellValue) / 1024).toFixed(2) + " kb"}
+                  ? (parseInt(cellValue) / 1024 / 1024).toFixed(2) + " MB"
+                  : (parseInt(cellValue) / 1024).toFixed(2) + " KB"}
               </p>
               {item?.compression && <Chip size="sm">gzip</Chip>}
             </span>
