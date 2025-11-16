@@ -55,6 +55,10 @@ type BackupStore = {
     backupPolicyID: string
   ) => Promise<void>;
   getBackupsForConnection: (connectionID: string) => Promise<void>;
+  getBackupById: (
+    connectionID: string,
+    backupID: string
+  ) => Promise<TBackup | undefined>;
 
   // Utility actions
   clearBackupPolicy: () => void;
@@ -247,6 +251,20 @@ export const useBackupStore = create<BackupStore>((set, get) => ({
     );
 
     set({ backups: backups ?? [], enablePolling, isLoading: false });
+  },
+
+  getBackupById: async (connectionID: string, backupID: string) => {
+    set({ isLoading: true });
+    const { backup, error } = await BackupAPI.GetBackupByIdRequest(
+      connectionID,
+      backupID
+    );
+    if (error) {
+      toast.error(error.error);
+      set({ isLoading: false });
+      return;
+    }
+    return backup;
   },
 
   // Utility actions

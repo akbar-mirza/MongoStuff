@@ -168,7 +168,7 @@ const GetBackupsForPolicyRequest = async (
       backups: TBackup[];
     },
     TErrorResp
-  >(`backup-policy/${connectionID}/${backupPolicyID}/backups`);
+  >(`backup/${connectionID}/${backupPolicyID}/by-policy`);
   return { backups: response?.backups, error };
 };
 
@@ -184,6 +184,27 @@ const GetBackupsForConnectionRequest = async (connectionID: string) => {
   return { backups: response?.backups, error };
 };
 
+const GetBackupByIdRequest = async (connectionID: string, backupID: string) => {
+  const [response, error] = await Get<
+    {
+      backup: TBackup;
+    },
+    TErrorResp
+  >(`backup/${connectionID}/${backupID}`);
+  return { backup: response?.backup, error };
+};
+
+const DeleteBackupByRetentionManualRequest = async (connectionID: string) => {
+  const [response, error] = await Delete<
+    null,
+    {
+      message: string;
+    },
+    TErrorResp
+  >(`backup/${connectionID}/delete-by-retention`, null);
+  return { message: response?.message, error };
+};
+
 const BackupAPI = {
   CreateBackupPolicyRequest,
   GetBackupPolicyRequest,
@@ -194,6 +215,8 @@ const BackupAPI = {
   TriggerBackupRequest,
   GetBackupsForPolicyRequest,
   GetBackupsForConnectionRequest,
+  GetBackupByIdRequest,
+  DeleteBackupByRetentionManualRequest,
 };
 
 export default BackupAPI;

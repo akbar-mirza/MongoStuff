@@ -4,10 +4,12 @@ import (
 	"log/slog"
 	"mongostuff/src/interfaces"
 	"mongostuff/src/services"
+	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 )
 
+// ====[Backup Policy]====
 // CreateBackupPolicy creates a new backup policy
 func CreateBackupPolicy(c *fiber.Ctx) error {
 	// Parse the request body
@@ -125,7 +127,6 @@ func UpdateBackupPolicy(c *fiber.Ctx) error {
 		})
 	}
 
-
 	// Handle cron job updates based on status changes
 	if existingPolicy.Status != updatedPolicy.Status {
 		if updatedPolicy.Status == "Active" {
@@ -150,9 +151,10 @@ func UpdateBackupPolicy(c *fiber.Ctx) error {
 // DeleteBackupPolicy deletes a backup policy
 func DeleteBackupPolicy(c *fiber.Ctx) error {
 	backupPolicyID := c.Params("BackupPolicyID")
+	forceDelete := c.QueryBool("forceDelete", false)
 
 	// Delete the backup policy
-	deletedPolicy, err := services.DeleteBackUpPolicy(backupPolicyID)
+	deletedPolicy, err := services.DeleteBackUpPolicy(backupPolicyID, &forceDelete)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "Backup policy not found",
@@ -168,6 +170,8 @@ func DeleteBackupPolicy(c *fiber.Ctx) error {
 	})
 }
 
+
+// ====[Backup]====
 // TriggerBackup manually triggers a backup for a policy
 func TriggerBackup(c *fiber.Ctx) error {
 	backupPolicyID := c.Params("BackupPolicyID")
@@ -219,5 +223,37 @@ func BackupsForConnection(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"backups": backups,
+	})
+}
+
+// GetBackup gets a backup by ID
+func GetBackup(c *fiber.Ctx) error {
+	backupID := c.Params("BackupID")
+
+	backup, err := services.GetBackup(backupID)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "Backup not found",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"backup": backup,
+	})
+}
+
+func DeleteBackupByRetentionManual(c *fiber.Ctx) error {
+	connectionID := c.Params("ConnID")
+
+	// Delete backups based on retention policy
+	backupIds, err := services.DeleteBackupsByRetention(&connectionID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "(" + strconv.Itoa(len(backupIds)) + ") backups deleted successfully based on retention policy",
 	})
 }
