@@ -2,6 +2,7 @@ import {
   Button,
   Chip,
   Divider,
+  Input,
   Modal,
   ModalBody,
   ModalContent,
@@ -23,20 +24,22 @@ import {
   useDisclosure,
 } from "@heroui/react";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
-import React, { useEffect, useState } from "react";
-import { TBackup, TBackupWithPolicyName } from "../../../api/backup";
+import React, { useEffect, useState, useMemo } from "react";
+import BackupAPI, { TBackup, TBackupWithPolicyName } from "../../../api/backup";
 
 import {
   Calendar,
   Clock,
   Database,
   DatabaseBackup,
+  Filter,
   HardDrive,
   Hammer,
   Pencil,
   Terminal,
   Timer,
   Trash,
+  X,
 } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -229,6 +232,25 @@ export function RestoreBackup({ backup }: { backup: TBackup }) {
 // Render Backup Logs Modal
 export function RenderBackupLogs({ backup }: { backup: TBackup }) {
   const { isOpen, onOpen, onOpenChange, onClose } = useDisclosure();
+  const { connection } = useConnectionStore();
+  const [backupData, setBackupData] = useState<TBackup | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const fetchLogs = async () => {
+    setIsLoading(true);
+    const { backup: backupData, error } = await BackupAPI.GetBackupByIdRequest(
+      connection?.connectionID as string,
+      backup.backupID!
+    );
+    if (backupData && !error) {
+      setBackupData(backupData);
+    }
+    setIsLoading(false);
+  };
+  useEffect(() => {
+    if (isOpen) {
+      fetchLogs();
+    }
+  }, [isOpen]);
 
   return (
     <>
@@ -285,7 +307,13 @@ export function RenderBackupLogs({ backup }: { backup: TBackup }) {
               </Chip>
             </div>
             <pre className="whitespace-pre-wrap break-words text-small bg-default-100 p-4 rounded-lg">
-              {backup.logs || "No logs available for this backup."}
+              {isLoading ? (
+                <div className="flex items-center justify-center">
+                  <Spinner size="sm" />
+                </div>
+              ) : (
+                backupData?.logs || "No logs available for this backup."
+              )}
             </pre>
           </ModalBody>
           <ModalFooter>
@@ -305,6 +333,14 @@ export default function ConnectionBackups() {
     useBackupStore();
   const { connection } = useConnectionStore();
   const { id } = useParams();
+
+  // Filter states
+  const [dateFilter, setDateFilter] = useState<string>("all");
+  const [customStartDate, setCustomStartDate] = useState<string>("");
+  const [customEndDate, setCustomEndDate] = useState<string>("");
+  const [selectedPolicy, setSelectedPolicy] = useState<string>("all");
+  const [expiredFilter, setExpiredFilter] = useState<string>("all");
+  const [showFilters, setShowFilters] = useState(false);
 
   const columns = [
     { key: "backupID", label: "Backup ID" },
@@ -333,6 +369,99 @@ export default function ConnectionBackups() {
       return () => clearInterval(interval);
     }
   }, [id, enablePolling]);
+
+  // Get unique backup policies from backups
+  const uniquePolicies = useMemo(() => {
+    const policies = new Map<string, string>();
+    backups?.forEach((backup) => {
+      if (backup.backupPolicyID && !policies.has(backup.backupPolicyID)) {
+        policies.set(
+          backup.backupPolicyID,
+          (backup as TBackupWithPolicyName).policyName || backup.backupPolicyID
+        );
+      }
+    });
+    return Array.from(policies.entries()).map(([id, name]) => ({
+      id,
+      name,
+    }));
+  }, [backups]);
+
+  // Filter backups based on selected filters
+  const filteredBackups = useMemo(() => {
+    if (!backups) return [];
+
+    let filtered = [...backups];
+
+    // Date filter
+    if (dateFilter !== "all") {
+      if (dateFilter === "custom") {
+        if (customStartDate && customEndDate) {
+          const start = new Date(customStartDate).getTime();
+          const end = new Date(customEndDate).getTime() + 24 * 60 * 60 * 1000; // Include full end date
+          filtered = filtered.filter(
+            (backup) => backup.timestamp >= start && backup.timestamp <= end
+          );
+        }
+      } else {
+        const now = Date.now();
+        let startDate: number;
+
+        switch (dateFilter) {
+          case "last7":
+            startDate = now - 7 * 24 * 60 * 60 * 1000;
+            break;
+          case "last30":
+            startDate = now - 30 * 24 * 60 * 60 * 1000;
+            break;
+          case "lastWeek": {
+            const today = new Date();
+            const dayOfWeek = today.getDay();
+            const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+            const lastMonday = new Date(today);
+            lastMonday.setDate(today.getDate() - daysToMonday - 7);
+            lastMonday.setHours(0, 0, 0, 0);
+            startDate = lastMonday.getTime();
+            break;
+          }
+          default:
+            startDate = 0;
+            break;
+        }
+
+        filtered = filtered.filter((backup) => backup.timestamp >= startDate);
+      }
+    }
+
+    // Policy filter
+    if (selectedPolicy !== "all") {
+      filtered = filtered.filter(
+        (backup) => backup.backupPolicyID === selectedPolicy
+      );
+    }
+
+    // Expired status filter
+    if (expiredFilter !== "all") {
+      const now = Date.now();
+      filtered = filtered.filter((backup) => {
+        if (expiredFilter === "expired") {
+          return backup.toBeDeletedAt > 0 && backup.toBeDeletedAt <= now;
+        } else if (expiredFilter === "notExpired") {
+          return backup.toBeDeletedAt === 0 || backup.toBeDeletedAt > now;
+        }
+        return true;
+      });
+    }
+
+    return filtered;
+  }, [
+    backups,
+    dateFilter,
+    customStartDate,
+    customEndDate,
+    selectedPolicy,
+    expiredFilter,
+  ]);
 
   const statusColorMap: {
     [key: string]: "success" | "danger" | "warning" | "default";
@@ -499,13 +628,35 @@ export default function ConnectionBackups() {
 
   const [page, setPage] = React.useState(1);
   const rowsPerPage = 10;
-  const pages = Math.ceil((backups?.length || 0) / rowsPerPage);
+  const pages = Math.ceil((filteredBackups?.length || 0) / rowsPerPage);
 
   const items = React.useMemo(() => {
     const start = (page - 1) * rowsPerPage;
     const end = start + rowsPerPage;
-    return backups?.slice(start, end) || [];
-  }, [page, rowsPerPage, backups]);
+    return filteredBackups?.slice(start, end) || [];
+  }, [page, rowsPerPage, filteredBackups]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [
+    dateFilter,
+    customStartDate,
+    customEndDate,
+    selectedPolicy,
+    expiredFilter,
+  ]);
+
+  const clearFilters = () => {
+    setDateFilter("all");
+    setCustomStartDate("");
+    setCustomEndDate("");
+    setSelectedPolicy("all");
+    setExpiredFilter("all");
+  };
+
+  const hasActiveFilters =
+    dateFilter !== "all" || selectedPolicy !== "all" || expiredFilter !== "all";
 
   if (isLoading) {
     return (
@@ -518,7 +669,7 @@ export default function ConnectionBackups() {
   return (
     <div className="w-full">
       <div className="flex justify-between w-full items-center">
-        <div className="flex items-center justify-center">
+        <div className="flex items-center justify-center gap-2">
           {enablePolling && (
             <Chip
               color="success"
@@ -536,10 +687,137 @@ export default function ConnectionBackups() {
             {connection?.name} Backup History
           </span>
         </div>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant={showFilters ? "solid" : "flat"}
+            color={showFilters ? "primary" : "default"}
+            onPress={() => setShowFilters(!showFilters)}
+            startContent={<Filter size={16} />}
+          >
+            Filters
+          </Button>
+          {hasActiveFilters && (
+            <Chip
+              size="sm"
+              variant="flat"
+              color="primary"
+              onClose={clearFilters}
+            >
+              {filteredBackups.length} of {backups?.length || 0}
+            </Chip>
+          )}
+        </div>
       </div>
       <Spacer y={4} />
 
-      {backups && backups.length > 0 ? (
+      {showFilters && (
+        <div className="bg-default-50 p-4 rounded-lg border border-default-200 mb-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Filter size={18} />
+              <p className="text-sm font-semibold">Filter Backups</p>
+            </div>
+            {hasActiveFilters && (
+              <Button
+                size="sm"
+                variant="light"
+                color="danger"
+                onPress={clearFilters}
+                startContent={<X size={14} />}
+              >
+                Clear All
+              </Button>
+            )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Date Filter */}
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Date Range</label>
+              <Select
+                selectedKeys={[dateFilter]}
+                onSelectionChange={(keys) => {
+                  const value = Array.from(keys)[0] as string;
+                  setDateFilter(value);
+                  if (value !== "custom") {
+                    setCustomStartDate("");
+                    setCustomEndDate("");
+                  }
+                }}
+                label="Select Date Range"
+                size="sm"
+              >
+                <SelectItem key="all">All Time</SelectItem>
+                <SelectItem key="last7">Last 7 Days</SelectItem>
+                <SelectItem key="last30">Last 30 Days</SelectItem>
+                <SelectItem key="lastWeek">Last Week</SelectItem>
+                <SelectItem key="custom">Custom Range</SelectItem>
+              </Select>
+              {dateFilter === "custom" && (
+                <div className="flex flex-col gap-2 mt-2">
+                  <Input
+                    type="date"
+                    label="Start Date"
+                    size="sm"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                  />
+                  <Input
+                    type="date"
+                    label="End Date"
+                    size="sm"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Policy Filter */}
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Backup Policy</label>
+              <Select
+                selectedKeys={[selectedPolicy]}
+                onSelectionChange={(keys) => {
+                  const value = Array.from(keys)[0] as string;
+                  setSelectedPolicy(value);
+                }}
+                label="Select Policy"
+                size="sm"
+              >
+                <SelectItem key="all">All Policies</SelectItem>
+                {
+                  uniquePolicies?.map((policy) => (
+                    <SelectItem key={policy.id}>{policy.name}</SelectItem>
+                  )) as any
+                }
+              </Select>
+            </div>
+
+            {/* Expired Status Filter */}
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Expiration Status</label>
+              <Select
+                selectedKeys={[expiredFilter]}
+                onSelectionChange={(keys) => {
+                  const value = Array.from(keys)[0] as string;
+                  setExpiredFilter(value);
+                }}
+                label="Select Status"
+                size="sm"
+              >
+                <SelectItem key="all">All</SelectItem>
+                <SelectItem key="expired">Expired</SelectItem>
+                <SelectItem key="notExpired">Not Expired</SelectItem>
+              </Select>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Spacer y={2} />
+
+      {filteredBackups && filteredBackups.length > 0 ? (
         <Table
           aria-label="Backup logs table"
           bottomContent={
@@ -578,6 +856,23 @@ export default function ConnectionBackups() {
             )}
           </TableBody>
         </Table>
+      ) : backups && backups.length > 0 ? (
+        <div className="flex flex-col items-center justify-center h-80">
+          <EmptyState
+            Icon={
+              <DotLottieReact
+                src="https://lottie.host/281813e4-12ea-4257-a041-69fc069edafe/dQopTPxL06.lottie"
+                loop
+                autoplay
+                backgroundColor="transparent"
+              />
+            }
+            Title="No backups match your filters"
+            Description="Try adjusting your filter criteria to see more results"
+            TitleClassName="-translate-y-20"
+            DescriptionClassName="-translate-y-20"
+          />
+        </div>
       ) : (
         <div className="flex flex-col items-center justify-center h-80">
           <EmptyState

@@ -12,6 +12,7 @@ import ConnectionAPI from "../../../api/connection";
 import { useConnectionStore } from "../../../stores/connection.store";
 import { useStorageStore } from "../../../stores/storage.store";
 import { toast } from "sonner";
+import BackupAPI from "../../../api/backup";
 
 export default function ConnectionSettings() {
   const { connection } = useConnectionStore();
@@ -39,6 +40,17 @@ export default function ConnectionSettings() {
     toast.success(message);
   };
 
+  const handleDeleteBackupsByRetention = async () => {
+    const { message, error } =
+      await BackupAPI.DeleteBackupByRetentionManualRequest(
+        connection?.connectionID!
+      );
+    if (error) {
+      toast.error(error.error);
+      return;
+    }
+    toast.success(message);
+  };
   return (
     <div>
       <Card className="w-full">
@@ -64,6 +76,22 @@ export default function ConnectionSettings() {
           </Select>
           <Button onPress={handleSetDefaultStorage} color="default">
             Save
+          </Button>
+        </CardFooter>
+      </Card>
+      <Card className="w-full">
+        <CardHeader className="flex gap-3">
+          <div className="flex flex-col">
+            <p className="text-md">Backups</p>
+          </div>
+        </CardHeader>
+        <Divider />
+        <CardFooter className="flex gap-3">
+          <p className="text-small text-default-500">
+            Delete backups by retention for this connection.
+          </p>
+          <Button onPress={handleDeleteBackupsByRetention} color="default">
+            Delete Backups by Retention
           </Button>
         </CardFooter>
       </Card>

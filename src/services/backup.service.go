@@ -129,7 +129,7 @@ func UpdateBackUpPolicy(
 	var Collection = global.GetCollection(global.BackupPoliciesCollection)
 
 	// Use custom marshaler
-    updateParams, err := libs.MarshalWithJSONTags(params)
+	updateParams, err := libs.MarshalWithJSONTags(params)
 
 	backupPolicy := interfaces.BackupPolicy{}
 	err = Collection.FindOneAndUpdate(
@@ -150,10 +150,9 @@ func UpdateBackUpPolicy(
 	return backupPolicy, nil
 }
 
-
 func UpdateBackUpPolicyNextRun(backupPolicyID string) {
 	var Collection = global.GetCollection(global.BackupPoliciesCollection)
-	
+
 	// First, get the backup policy to access its interval and timeUnit
 	backupPolicy, err := GetBackUpPolicy(backupPolicyID, nil)
 	if err != nil {
@@ -161,10 +160,10 @@ func UpdateBackUpPolicyNextRun(backupPolicyID string) {
 		fmt.Println(err)
 		return
 	}
-	
+
 	// Calculate next run time using the actual backup policy data
 	nextRun := time.Now().UnixMilli() + int64(backupPolicy.Interval)*libs.ParseTimeUnitToMilli(libs.TimeUnit(backupPolicy.TimeUnit))
-	
+
 	// Update the next run time
 	err = Collection.FindOneAndUpdate(
 		context.TODO(),
@@ -186,11 +185,24 @@ func UpdateBackUpPolicyNextRun(backupPolicyID string) {
 
 func DeleteBackUpPolicy(
 	backupPolicyID string,
+	forceDelete *bool,
 ) (
 	interfaces.BackupPolicy,
 	error,
 ) {
 	var Collection = global.GetCollection(global.BackupPoliciesCollection)
+
+	if forceDelete != nil && *forceDelete {
+		err := Collection.FindOneAndDelete(
+			context.TODO(),
+			bson.M{
+				"backupPolicyID": backupPolicyID,
+			},
+		).Err()
+		if err != nil {
+			return interfaces.BackupPolicy{}, err
+		}
+	}
 
 	backupPolicy := interfaces.BackupPolicy{}
 	err := Collection.FindOneAndUpdate(
@@ -201,6 +213,7 @@ func DeleteBackUpPolicy(
 		bson.M{
 			"$set": bson.M{
 				"isDeleted": true,
+				"Status":    "Inactive",
 			},
 		},
 	).Decode(&backupPolicy)
@@ -256,7 +269,6 @@ func GetAllLogs(
 	[]interfaces.BackupWithPolicyName,
 	error,
 ) {
-	fmt.Println("Getting all logs for connectionID", connectionID)
 	var Collection = global.GetCollection(global.BackupsCollection)
 	var BackupPolicyCollection = global.GetCollection(global.BackupPoliciesCollection)
 
@@ -272,7 +284,6 @@ func GetAllLogs(
 		return []interfaces.BackupWithPolicyName{}, err
 	}
 
-
 	backups := []interfaces.BackupWithPolicyName{}
 	cursor, err := Collection.Aggregate(
 		context.TODO(),
@@ -284,15 +295,23 @@ func GetAllLogs(
 			},
 			{
 				"$lookup": bson.M{
-					"from": global.BackupPoliciesCollection,
-					"localField": "backupPolicyID",
+					"from":         global.BackupPoliciesCollection,
+					"localField":   "backupPolicyID",
 					"foreignField": "backupPolicyID",
-					"as": "backupPolicy",
+					"as":           "backupPolicy",
 				},
 			},
 			{
 				"$addFields": bson.M{
 					"policyName": bson.M{"$arrayElemAt": bson.A{"$backupPolicy.name", 0}},
+				},
+			},
+			{
+				"$unset": "logs",
+			},
+			{
+				"$sort": bson.M{
+					"timestamp": -1,
 				},
 			},
 		},
@@ -304,7 +323,6 @@ func GetAllLogs(
 	defer cursor.Close(context.TODO())
 	for cursor.Next(context.TODO()) {
 		var backup interfaces.BackupWithPolicyName
-		// print formatted json
 		err := cursor.Decode(&backup)
 		if err != nil {
 			return []interfaces.BackupWithPolicyName{}, err
@@ -390,13 +408,16 @@ func InitCron() {
 	// start cron
 	SCHEDULER.Start()
 
-	// add delete old backups to cron every day at 00:00
-	SCHEDULER.AddJob("delete_old_backups", "0 0 * * *", DeleteOldBackups)
+	// add delete old backups to every hour
+	SCHEDULER.AddJob("delete_old_backups", "0 0 * * * *",
+		func() {
+			DeleteBackupsByRetention(nil)
+		},
+	)
 }
 
 func ProcessBackUp(backupPolicyID string, isTriggered *bool) {
 	backupPolicy, err := GetBackUpPolicy(backupPolicyID, nil)
-	fmt.Println("Backup Policy:==>", backupPolicy)
 	if err != nil {
 		return
 	}
@@ -547,6 +568,9 @@ func ProcessBackUp(backupPolicyID string, isTriggered *bool) {
 
 	// Calculate to be deleted at Rentention is N of Days
 	toBeDeletedAt := time.Now().UnixMilli() + int64(backupPolicy.Retention)*24*60*60*1000 // Retention in milliseconds
+	if backupPolicy.Retention == 0 {
+		toBeDeletedAt = 0
+	}
 	// Save backup to DB
 	backup := interfaces.Backup{
 		BackupID:       backupID,
@@ -561,8 +585,6 @@ func ProcessBackUp(backupPolicyID string, isTriggered *bool) {
 		IsDeleted:      false,
 		ToBeDeletedAt:  toBeDeletedAt, // Retention in seconds
 	}
-
-
 
 	_, err = BackUpCollection.UpdateOne(
 		context.TODO(),
@@ -592,6 +614,48 @@ func ProcessBackUp(backupPolicyID string, isTriggered *bool) {
 	}
 }
 
+func DeleteBackupByKeep(backupPolicyID string) {
+	var Collection = global.GetCollection(global.BackupsCollection)
+
+	policy, err := GetBackUpPolicy(backupPolicyID, nil)
+	if err != nil {
+		fmt.Println("Error getting backup policy")
+		fmt.Println(err)
+		return
+	}
+
+	// get all the backups for the policy
+	cursor, err := Collection.Find(
+		context.TODO(),
+		bson.M{"backupPolicyID": backupPolicyID},
+		&options.FindOptions{
+			Projection: bson.M{"backupID": 1, "timestamp": 1},
+			Sort:       bson.M{"timestamp": 1},
+		},
+	)
+
+	if err != nil {
+		fmt.Println("Error getting backups")
+		fmt.Println(err)
+		return
+	}
+
+	// Get all the backups
+	var backups []bson.M
+	if err = cursor.All(context.TODO(), &backups); err != nil {
+		fmt.Println("Error getting backups")
+		fmt.Println(err)
+		return
+	}
+
+	// Delete all backups except the last N
+	for i := 0; i < len(backups)-policy.Keep; i++ {
+		backupID := backups[i]["backupID"].(string)
+		fmt.Println("Deleting backup", backupID)
+		DeleteBackup(backupID)
+	}
+
+}
 
 func DeleteBackup(backupID string) {
 	var Collection = global.GetCollection(global.BackupsCollection)
@@ -638,15 +702,43 @@ func DeleteBackup(backupID string) {
 	fmt.Println("Backup deleted", backupID)
 }
 
-func DeleteOldBackups() {
-	var Collection = global.GetCollection(global.BackupsCollection)
+func DeleteBackupsByRetention(
+	connectionID *string,
+) ([]string, error) {
+	var BackUpCollection = global.GetCollection(global.BackupsCollection)
+	var BackUpPolicyCollection = global.GetCollection(global.BackupPoliciesCollection)
+
+	filter := bson.M{
+		"toBeDeletedAt": bson.M{
+			"$ne": 0,
+			"$lt": time.Now().UnixMilli(),
+		},
+	}
+
+	if connectionID == nil {
+		// get all the backupPolicy ids in BackUpPolicyCollection
+		backupPoliciesIDs, err := BackUpPolicyCollection.Distinct(
+			context.TODO(),
+			"backupPolicyID",
+			bson.M{
+				"connectionID": connectionID,
+			},
+		)
+
+		if err != nil {
+			fmt.Println("Error getting backup policies")
+			fmt.Println(err)
+			return []string{}, err
+		}
+
+		filter["backupPolicyID"] = bson.M{"$in": backupPoliciesIDs}
+
+	}
 
 	// Only get backups that are past the retention date and select backupId
-	cursor, err := Collection.Find(
+	cursor, err := BackUpCollection.Find(
 		context.TODO(),
-		bson.M{
-			"toBeDeletedAt": bson.M{"$lt": time.Now().UnixMilli()},
-		},
+		filter,
 		&options.FindOptions{
 			Projection: bson.M{"backupID": 1},
 		},
@@ -654,19 +746,23 @@ func DeleteOldBackups() {
 
 	if err != nil {
 		fmt.Println("Error getting backups")
-		fmt.Println(err)
-		return
+		fmt.Println("Error:", err)
+		return []string{}, err
 	}
-
+	backupIds := []string{}
 	for cursor.Next(context.TODO()) {
 		var backup interfaces.Backup
 		err := cursor.Decode(&backup)
 		if err != nil {
 			fmt.Println("Error decoding backup")
 			fmt.Println(err)
-			return
+			return []string{}, err
 		}
 		fmt.Println("Deleting backup", backup.BackupID)
-		DeleteBackup(backup.BackupID)
+		backupIds = append(backupIds, backup.BackupID)
+		go DeleteBackup(backup.BackupID)  
 	}
+
+	
+	return backupIds, nil
 }

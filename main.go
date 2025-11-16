@@ -115,7 +115,9 @@ func routes(app *fiber.App) {
 	// [Backup]
 	backupGroup := api.Group("/backup", middlewares.Auth)
 	backupGroup.Get("/:ConnID", middlewares.IsConnectionBelongToUser, controllers.BackupsForConnection)
-	backupGroup.Get("/:ConnID/:BackupPolicyID", middlewares.IsConnectionBelongToUser, controllers.BackupsForPolicy)
+	backupGroup.Get("/:ConnID/:BackupPolicyID/by-policy", middlewares.IsConnectionBelongToUser, controllers.BackupsForPolicy)
+	backupGroup.Get("/:ConnID/:BackupID", middlewares.IsConnectionBelongToUser, controllers.GetBackup)
+	backupGroup.Delete("/:ConnID/delete-by-retention", middlewares.IsConnectionBelongToUser, controllers.DeleteBackupByRetentionManual)
 
 	// Serve Static Files
 	app.Static("/", "./web/dist", fiber.Static{
