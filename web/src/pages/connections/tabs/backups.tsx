@@ -79,7 +79,7 @@ function LiveDuration({ startTimestamp }: { startTimestamp: number }) {
 // Restore Backup Modal
 export function RestoreBackup({ backup }: { backup: TBackup }) {
   const { isOpen, onOpen, onOpenChange, onClose } = useDisclosure();
-  const { connection, connectionList } = useConnectionStore();
+  const { connection, connectionList, getConnections } = useConnectionStore();
   const [isLoading, setIsLoading] = useState(false);
   const [allowUpdate, setAllowUpdate] = useState(false);
   const [selectConnection, setSelectConnection] = useState<string | null>(null);
@@ -102,6 +102,10 @@ export function RestoreBackup({ backup }: { backup: TBackup }) {
     setIsLoading(false);
     onClose();
   };
+
+  if (connectionList.length === 0) {
+    getConnections();
+  }
 
   return (
     <>
