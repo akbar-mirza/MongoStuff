@@ -7,9 +7,9 @@ import {
   Scroll,
   Settings,
 } from "lucide-react";
-// import { GalleryIcon } from "./GalleryIcon";
-// import { MusicIcon } from "./MusicIcon";
-// import { VideoIcon } from "./VideoIcon";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useConnectionStore } from "../../stores/connection.store";
+import { toast } from "sonner";
 
 type Pages =
   | "Overview"
@@ -25,12 +25,25 @@ type Props = {
 };
 
 export default function ConnectionTabs(props: Props) {
+  const navigate = useNavigate();
+  const { connection } = useConnectionStore();
+  const activeTab = useLocation().search.split("=")[1] ?? "overview";
+
+  const handleTabRoute = (tab: string) => {
+    if (!connection) {
+      toast.error("No connection selected");
+      return;
+    }
+    navigate(`/connection/${connection.connectionID}?tab=${tab}`);
+  };
+
   return (
-    <div className="flex flex-col w-full px-6">
+    <div className="flex flex-col w-full px-6 relative">
       <Tabs
         aria-label="Options"
         color="primary"
         variant="underlined"
+        className="sticky top-14 z-10 bg-background"
         classNames={{
           tabList:
             "gap-6 w-full relative rounded-none p-0 border-b border-divider",
@@ -38,6 +51,8 @@ export default function ConnectionTabs(props: Props) {
           tab: "max-w-fit px-0 h-12",
           tabContent: "group-data-[selected=true]:primary",
         }}
+        selectedKey={activeTab}
+        onSelectionChange={(key) => handleTabRoute(key.toString())}
       >
         <Tab
           key="overview"
@@ -58,6 +73,7 @@ export default function ConnectionTabs(props: Props) {
               <span>Snapshots</span>
             </div>
           }
+          value="snapshots"
         >
           <props.Pages.Snapshots />
         </Tab>
@@ -69,6 +85,7 @@ export default function ConnectionTabs(props: Props) {
               <span>Backups Policies</span>
             </div>
           }
+          value="backups-policies"
         >
           <props.Pages.BackupsPolicies />
         </Tab>
@@ -80,6 +97,7 @@ export default function ConnectionTabs(props: Props) {
               <span>Backups</span>
             </div>
           }
+          value="backups"
         >
           <props.Pages.Backups />
         </Tab>
@@ -91,6 +109,7 @@ export default function ConnectionTabs(props: Props) {
               <span>Restores</span>
             </div>
           }
+          value="restores"
         >
           <props.Pages.Restores />
         </Tab>
@@ -102,6 +121,7 @@ export default function ConnectionTabs(props: Props) {
               <span>Settings</span>
             </div>
           }
+          value="settings"
         >
           <props.Pages.Settings />
         </Tab>

@@ -23,7 +23,8 @@ export default function ConnectionSettings() {
 
   useEffect(() => {
     getStorages();
-  }, []);
+    setDefaultStorageID(new Set([connection?.defaultStorageID!]));
+  }, [connection]);
 
   const handleSetDefaultStorage = async () => {
     // values
@@ -51,6 +52,7 @@ export default function ConnectionSettings() {
     }
     toast.success(message);
   };
+
   return (
     <div>
       <Card className="w-full">

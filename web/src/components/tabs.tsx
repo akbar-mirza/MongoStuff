@@ -1,8 +1,5 @@
 import { Tab, Tabs } from "@heroui/react";
 import { Activity, Cable, HardDriveDownload, Settings } from "lucide-react";
-// import { GalleryIcon } from "./GalleryIcon";
-// import { MusicIcon } from "./MusicIcon";
-// import { VideoIcon } from "./VideoIcon";
 import { useLocation, useNavigate } from "react-router-dom";
 
 export default function MainTabs() {
@@ -10,8 +7,12 @@ export default function MainTabs() {
   const path = useLocation().pathname;
   const activeTab = path.includes("storage") ? "storage" : "connections";
 
+  const handleTabRoute = (key: string) => {
+    navigate(`/${key}`);
+  };
+
   return (
-    <div className="flex flex-col w-full px-6">
+    <div className="flex flex-col w-full px-6 sticky top-14 z-10 bg-background">
       <Tabs
         aria-label="Options"
         color="primary"
@@ -24,16 +25,16 @@ export default function MainTabs() {
           tabContent: "group-data-[selected=true]:primary",
         }}
         selectedKey={activeTab}
+        onSelectionChange={(key) =>
+          key === "connections"
+            ? handleTabRoute("")
+            : handleTabRoute(key.toString())
+        }
       >
         <Tab
           key="connections"
           title={
-            <div
-              className="flex items-center space-x-2"
-              onClick={() => {
-                navigate("/");
-              }}
-            >
+            <div className="flex items-center space-x-2">
               <Cable size={18} />
               <span>Connections</span>
             </div>
@@ -42,12 +43,7 @@ export default function MainTabs() {
         <Tab
           key="storage"
           title={
-            <div
-              className="flex items-center space-x-2"
-              onClick={() => {
-                navigate("/storage");
-              }}
-            >
+            <div className="flex items-center space-x-2">
               <HardDriveDownload size={18} />
               <span>Storage</span>
             </div>

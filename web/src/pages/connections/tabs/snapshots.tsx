@@ -274,7 +274,7 @@ export function RestoreSnapshot({ snapshot_id }: { snapshot_id: string }) {
 
   const { setSnapshot, findSnapshot } = useSnapshotStore();
   const snapshot = findSnapshot(snapshot_id);
-  const { connection, connectionList } = useConnectionStore();
+  const { connection, connectionList, getConnections } = useConnectionStore();
 
   const [isLoading, setIsLoading] = useState(false);
   const [allowUpdate, setAllowUpdate] = useState(false);
@@ -298,6 +298,10 @@ export function RestoreSnapshot({ snapshot_id }: { snapshot_id: string }) {
     setIsLoading(false);
     onClose();
   };
+
+  if (connectionList.length === 0) {
+    getConnections();
+  }
 
   return (
     <>
