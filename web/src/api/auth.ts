@@ -3,8 +3,7 @@ import { Delete, Get, Post } from ".";
 type User = {
   username: string;
   userID: string;
-  sessionToken: string;
-  csrfToken: string;
+  lastLogin: number;
 };
 
 type LoginParams = {

@@ -1,22 +1,31 @@
 package libs
 
 import (
-	"log/slog"
-	"math/rand"
+	"crypto/rand"
+	"encoding/base64"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
-const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-
 // RandomString generates a random string of a specified length
 func RandomString(prefix string,
 	length int) string {
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = charset[rand.Intn(len(charset))]
+	if length <= 0 {
+		return prefix
 	}
-	return prefix + string(b)
+
+	byteLen := (length*3 + 3) / 4
+	b := make([]byte, byteLen)
+	if _, err := rand.Read(b); err != nil {
+		panic(err)
+	}
+
+	token := base64.RawURLEncoding.EncodeToString(b)
+	if len(token) > length {
+		token = token[:length]
+	}
+
+	return prefix + token
 }
 
 // HashPassword hashes a password using bcrypt
@@ -30,7 +39,6 @@ func HashPassword(password string) (string, error) {
 
 // ComparePassword compares a hashed password with a plain-text password
 func ComparePassword(hashedPwd, plainPwd string) bool {
-	slog.Info("Comparing passwords", "hashedPwd", hashedPwd, "plainPwd", plainPwd)
 	err := bcrypt.CompareHashAndPassword([]byte(hashedPwd), []byte(plainPwd))
 	return err == nil
 }

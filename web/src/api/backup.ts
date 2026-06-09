@@ -174,14 +174,31 @@ const GetBackupsForPolicyRequest = async (
 
 // Note: This endpoint is not currently routed in main.go
 // You may need to add a new backup group: backupGroup.Get("/:ConnID", middlewares.IsConnectionBelongToUser, controllers.BackupsForConnection)
-const GetBackupsForConnectionRequest = async (connectionID: string) => {
+type TBackupPaginationParams = {
+  limit?: number;
+  skip?: number;
+};
+
+const GetBackupsForConnectionRequest = async (
+  connectionID: string,
+  params?: TBackupPaginationParams
+) => {
+  const query = new URLSearchParams();
+  if (params?.limit !== undefined) {
+    query.set("limit", String(params.limit));
+  }
+  if (params?.skip !== undefined) {
+    query.set("skip", String(params.skip));
+  }
+  const queryString = query.toString();
   const [response, error] = await Get<
     {
       backups: TBackupWithPolicyName[];
+      total: number;
     },
     TErrorResp
-  >(`backup/${connectionID}`);
-  return { backups: response?.backups, error };
+  >(`backup/${connectionID}${queryString ? `?${queryString}` : ""}`);
+  return { backups: response?.backups, total: response?.total, error };
 };
 
 const GetBackupByIdRequest = async (connectionID: string, backupID: string) => {

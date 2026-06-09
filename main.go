@@ -90,8 +90,8 @@ func routes(app *fiber.App) {
 	authGroup := api.Group("/auth")
 	authGroup.Post("/login", controllers.Login)
 	authGroup.Post("/register", controllers.Register)
-	authGroup.Get("/current", controllers.GetCurrentUser)
-	authGroup.Delete("/logout", controllers.Logout)
+	authGroup.Get("/current", middlewares.Auth, controllers.GetCurrentUser)
+	authGroup.Delete("/logout", middlewares.Auth, controllers.Logout)
 
 	// [Storage]
 	storageGroup := api.Group("/storage", middlewares.Auth)
@@ -110,7 +110,6 @@ func routes(app *fiber.App) {
 	backupPolicyGroup.Patch("/:ConnID/:BackupPolicyID", middlewares.IsConnectionBelongToUser, controllers.UpdateBackupPolicy)
 	backupPolicyGroup.Delete("/:ConnID/:BackupPolicyID", middlewares.IsConnectionBelongToUser, controllers.DeleteBackupPolicy)
 	backupPolicyGroup.Put("/:ConnID/:BackupPolicyID/trigger", middlewares.IsConnectionBelongToUser, controllers.TriggerBackup)
-
 
 	// [Backup]
 	backupGroup := api.Group("/backup", middlewares.Auth)

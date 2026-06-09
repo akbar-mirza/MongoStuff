@@ -25,7 +25,7 @@ func RestoreSnapshot(
 ) error {
 
 	var Collection = global.GetCollection(global.RestoresCollection)
-	snapshot, snap_err := GetSnapshot(snapshotID)
+	snapshot, snap_err := GetSnapshotForConnection(connectionID, snapshotID)
 	connection, conn_err := GetConnection(connectionID)
 
 	if snap_err != nil {
@@ -39,8 +39,8 @@ func RestoreSnapshot(
 	outputFile := "./_stuffs/snapshots" + "/" + fileName
 	if snapshot.StorageID != "" {
 		fmt.Println("StorageID: ", snapshot.StorageID)
-		storage, err := GetStorage(
-			GetStorageParams{
+		storage, err := GetStorageByID(
+			GetStorageByIDParams{
 				StorageID: snapshot.StorageID,
 			},
 		)
@@ -152,7 +152,7 @@ func RestoreBackup(
 	update bool,
 ) error {
 	var Collection = global.GetCollection(global.RestoresCollection)
-	backup, backup_err := GetBackup(backupID)
+	backup, backup_err := GetBackupForConnection(connectionID, backupID)
 	var backupPolicy interfaces.BackupPolicy
 	backupPolicy, backupPolicy_err := GetBackUpPolicy(backup.BackupPolicyID, nil)
 	if backupPolicy_err != nil {
@@ -171,8 +171,8 @@ func RestoreBackup(
 	outputFile := "./_stuffs/backups" + "/" + fileName
 	if backup.StorageID != "" {
 		fmt.Println("StorageID: ", backup.StorageID)
-		storage, err := GetStorage(
-			GetStorageParams{
+		storage, err := GetStorageByID(
+			GetStorageByIDParams{
 				StorageID: backup.StorageID,
 			},
 		)
@@ -233,7 +233,7 @@ func RestoreBackup(
 		Timestamp:               time.Now().UnixMilli(),
 		ConnectionID:            connectionID,
 		RestoreConnectionID:     connectionID,
-		BackupID:              backupID,
+		BackupID:                backupID,
 		Logs:                    libs.FallBackString(restoreRes.ErrorStr, restoreRes.Output),
 		Status:                  status,
 		Duration:                duration,
@@ -249,7 +249,7 @@ func RestoreBackup(
 		bson.M{
 			"connectionID":            restoreParams.ConnectionID,
 			"restoreConnectionID":     restoreParams.RestoreConnectionID,
-			"backupID":              restoreParams.BackupID,
+			"backupID":                restoreParams.BackupID,
 			"database":                restoreParams.Database,
 			"targetDatabase":          restoreParams.TargetDatabase,
 			"collection":              restoreParams.Collection,

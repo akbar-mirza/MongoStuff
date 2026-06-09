@@ -29,7 +29,7 @@ Process snpashot asynchronously with goroutines
 func ProcessSnapshot(
 	snapshotID string,
 ) {
-	slog.Info("Processing snapshot", snapshotID)
+	slog.Info("Processing snapshot", "snapshotID", snapshotID)
 	var Collection = global.GetCollection(global.SnapshotsCollection)
 	snapshot, err := GetSnapshot(snapshotID)
 	if err != nil {
@@ -334,7 +334,7 @@ func TakSnapshot(params TakSnapshotParams) (interfaces.Snapshot, error) {
 		},
 	)
 
-	slog.Info("Storage:", storage)
+	slog.Info("Storage loaded", "storageID", storage.StorageID, "type", storage.Type)
 
 	storagInstance := interfaces.Storage{
 		Type:    storage.Type,
@@ -438,6 +438,29 @@ func GetSnapshot(
 	return snapshot, nil
 }
 
+func GetSnapshotForConnection(
+	connectionID string,
+	snapshotID string,
+) (
+	interfaces.Snapshot,
+	error,
+) {
+	var Collection = global.GetCollection(global.SnapshotsCollection)
+	var snapshot interfaces.Snapshot
+	err := Collection.FindOne(
+		context.TODO(),
+		bson.M{
+			"snapshotID":   snapshotID,
+			"connectionID": connectionID,
+		},
+	).Decode(&snapshot)
+	if err != nil {
+		return interfaces.Snapshot{}, err
+	}
+
+	return snapshot, nil
+}
+
 // download output interface
 type DownloadSnapshotRes struct {
 	FileName        string
@@ -447,10 +470,11 @@ type DownloadSnapshotRes struct {
 }
 
 func DownloadSnapshot(
+	connectionID string,
 	snapshotID string,
 ) (
 	DownloadSnapshotRes, error) {
-	snapshot, err := GetSnapshot(snapshotID)
+	snapshot, err := GetSnapshotForConnection(connectionID, snapshotID)
 
 	if err != nil {
 		fmt.Println("Error getting snapshot")
@@ -480,10 +504,11 @@ func DownloadSnapshot(
 }
 
 func DownloadSnapshotFromStorage(
+	connectionID string,
 	snapshotID string,
 ) (
 	string, error) {
-	snapshot, err := GetSnapshot(snapshotID)
+	snapshot, err := GetSnapshotForConnection(connectionID, snapshotID)
 	Collection := global.GetCollection(global.SnapshotsCollection)
 
 	if err != nil {
@@ -497,12 +522,18 @@ func DownloadSnapshotFromStorage(
 		// update snapshot with new url
 		if isExpired {
 			// generate new presigned url
-			storage, err := GetStorage(
-				GetStorageParams{
+			storage, err := GetStorageByID(
+				GetStorageByIDParams{
 					StorageID: snapshot.StorageID,
 				},
 			)
+			if err != nil {
+				return "", err
+			}
 			url, err := storage.GetPresignedURL(snapshot.Artifact.Key, 60*60*24)
+			if err != nil {
+				return "", err
+			}
 			// update snapshot
 			_, err = Collection.UpdateOne(
 				context.TODO(),
@@ -523,6 +554,7 @@ func DownloadSnapshotFromStorage(
 }
 
 func UpdateSnapshotTags(
+	connectionID string,
 	snapshotID string,
 	tags []string,
 ) (
@@ -533,7 +565,7 @@ func UpdateSnapshotTags(
 	var snapshot interfaces.Snapshot
 	err := Collection.FindOneAndUpdate(
 		context.TODO(),
-		bson.M{"snapshotID": snapshotID},
+		bson.M{"snapshotID": snapshotID, "connectionID": connectionID},
 		bson.M{"$set": bson.M{"tags": tags}},
 		options.FindOneAndUpdate().SetReturnDocument(options.After),
 	).Decode(&snapshot)
@@ -546,18 +578,19 @@ func UpdateSnapshotTags(
 }
 
 func DeleteSnapshot(
+	connectionID string,
 	snapshotID string,
 ) error {
 	var Collection = global.GetCollection(global.SnapshotsCollection)
-	snapshot, err := GetSnapshot(snapshotID)
+	snapshot, err := GetSnapshotForConnection(connectionID, snapshotID)
 	if err != nil {
 		fmt.Println("Error getting snapshot")
 		fmt.Println(err)
 		return err
 	}
 	if snapshot.Artifact.Key != "" {
-		storage, err := GetStorage(
-			GetStorageParams{
+		storage, err := GetStorageByID(
+			GetStorageByIDParams{
 				StorageID: snapshot.StorageID,
 			},
 		)
@@ -575,7 +608,7 @@ func DeleteSnapshot(
 	}
 	_, err = Collection.DeleteOne(
 		context.TODO(),
-		bson.M{"snapshotID": snapshotID},
+		bson.M{"snapshotID": snapshotID, "connectionID": connectionID},
 	)
 	if err != nil {
 		fmt.Println("Error deleting snapshot")

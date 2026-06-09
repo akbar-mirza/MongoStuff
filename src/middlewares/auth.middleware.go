@@ -30,5 +30,6 @@ func Auth(c *fiber.Ctx) error {
 	}
 
 	c.Locals("UserID", user.UserID)
+	c.Locals("User", user)
 	return c.Next()
 }
