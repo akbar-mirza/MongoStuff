@@ -111,6 +111,11 @@ func routes(app *fiber.App) {
 	backupPolicyGroup.Delete("/:ConnID/:BackupPolicyID", middlewares.IsConnectionBelongToUser, controllers.DeleteBackupPolicy)
 	backupPolicyGroup.Put("/:ConnID/:BackupPolicyID/trigger", middlewares.IsConnectionBelongToUser, controllers.TriggerBackup)
 
+	// [Analytics]
+	analyticsGroup := api.Group("/analytics", middlewares.Auth)
+	analyticsGroup.Get("/overview", controllers.GetOverviewAnalytics)
+	analyticsGroup.Get("/:ConnID", middlewares.IsConnectionBelongToUser, controllers.GetConnectionAnalytics)
+
 	// [Backup]
 	backupGroup := api.Group("/backup", middlewares.Auth)
 	backupGroup.Get("/:ConnID", middlewares.IsConnectionBelongToUser, controllers.BackupsForConnection)

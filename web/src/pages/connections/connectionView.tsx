@@ -8,6 +8,7 @@ import ConnectionSnapshots from "./tabs/snapshots";
 import { useConnectionStore } from "../../stores/connection.store";
 import { useParams } from "react-router-dom";
 import ConnectionBackupPolicies from "./tabs/backup-policies";
+import ConnectionAnalytics from "./tabs/analytics";
 
 export type Props = {
   ConnectionID: string;
@@ -27,6 +28,7 @@ export default function ConnectionFullView() {
           BackupsPolicies: ConnectionBackupPolicies,
           Backups: ConnectionBackups,
           Restores: ConnectionRestores,
+          Analytics: ConnectionAnalytics,
           Settings: ConnectionSettings,
         }}
       />
