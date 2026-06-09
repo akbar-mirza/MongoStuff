@@ -1,5 +1,6 @@
 import { Tab, Tabs } from "@heroui/react";
 import {
+  BarChart3,
   Camera,
   DatabaseBackup,
   HardDrive,
@@ -17,6 +18,7 @@ type Pages =
   | "BackupsPolicies"
   | "Backups"
   | "Restores"
+  | "Analytics"
   | "Settings";
 type Props = {
   Pages: {
@@ -112,6 +114,18 @@ export default function ConnectionTabs(props: Props) {
           value="restores"
         >
           <props.Pages.Restores />
+        </Tab>
+        <Tab
+          key="analytics"
+          title={
+            <div className="flex items-center space-x-2">
+              <BarChart3 size={18} />
+              <span>Analytics</span>
+            </div>
+          }
+          value="analytics"
+        >
+          <props.Pages.Analytics />
         </Tab>
         <Tab
           key="settings"

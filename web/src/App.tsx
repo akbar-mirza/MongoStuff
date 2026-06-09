@@ -5,6 +5,7 @@ import Connections from "./pages/connections/connections";
 import ConnectionFullView from "./pages/connections/connectionView";
 import { Toaster } from "sonner";
 import Storages from "./pages/storages/storages";
+import ActivityPage from "./pages/activity/activity";
 
 const router = createBrowserRouter([
   {
@@ -26,6 +27,15 @@ const router = createBrowserRouter([
       <>
         <MainTabs />
         <Storages />
+      </>
+    ),
+  },
+  {
+    path: "/activity",
+    element: (
+      <>
+        <MainTabs />
+        <ActivityPage />
       </>
     ),
   },

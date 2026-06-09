@@ -5,7 +5,11 @@ import { useLocation, useNavigate } from "react-router-dom";
 export default function MainTabs() {
   const navigate = useNavigate();
   const path = useLocation().pathname;
-  const activeTab = path.includes("storage") ? "storage" : "connections";
+  const activeTab = path.includes("storage")
+    ? "storage"
+    : path.includes("activity")
+      ? "activity"
+      : "connections";
 
   const handleTabRoute = (key: string) => {
     navigate(`/${key}`);

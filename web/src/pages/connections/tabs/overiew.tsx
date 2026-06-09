@@ -8,27 +8,60 @@ import {
   ListboxItem,
   Badge,
   Divider,
+  Skeleton,
 } from "@heroui/react";
+import { useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { useConnectionStore } from "../../../stores/connection.store";
+import { useAnalyticsStore } from "../../../stores/analytics.store";
+import { useCostRatesStore } from "../../../stores/costRates.store";
 import ConnectionAPI from "../../../api/connection";
 import { toast } from "sonner";
 import {
   Database,
   Server,
   RefreshCw,
-  Activity,
-  Shield,
-  Clock,
+  ArrowRight,
+  ArrowUpFromLine,
+  BarChart3,
+  Camera,
+  CircleDollarSign,
   HardDrive,
   Globe,
   Info,
+  Layers,
+  ScrollText,
+  TrendingUp,
 } from "lucide-react";
+import StatCard from "../../../components/analytics/statCard";
+import { MonthlyActivityChart } from "../../../components/analytics/charts";
+import {
+  egressCost,
+  formatBytes,
+  formatCost,
+  storageCost,
+} from "../../../components/analytics/format";
 
 export type Props = {
   ConnectionID: string;
 };
+
+const successRate = (success: number, total: number): string => {
+  if (total === 0) return "No runs yet";
+  return `${Math.round((success / total) * 100)}% success rate`;
+};
+
 export default function ConnectionOverview() {
   const { connection, getConnection } = useConnectionStore();
+  const { connectionAnalytics, isLoadingConnection, getConnectionAnalytics } =
+    useAnalyticsStore();
+  const { storageRatePerGBMonth, egressRatePerGB } = useCostRatesStore();
+  const navigate = useNavigate();
+  const { id } = useParams();
+
+  useEffect(() => {
+    if (id) getConnectionAnalytics(id);
+  }, [id, getConnectionAnalytics]);
 
   const handleSyncConnection = async () => {
     if (!connection) return;
@@ -44,19 +77,51 @@ export default function ConnectionOverview() {
     getConnection(connection.connectionID);
   };
 
-  const getConnectionStatus = () => {
-    // Mock status - in real app, this would come from health check
-    return {
-      status: "connected",
-      lastSync: "-",
-      latency: "-",
-    };
-  };
+  const actual = connectionAnalytics?.actual;
+  const projections = connectionAnalytics?.projections;
+  const showSkeleton = isLoadingConnection && !connectionAnalytics;
 
-  const status = getConnectionStatus();
+  const collectionCount =
+    connection?.collections?.reduce(
+      (total, db) => total + db.collections.length,
+      0
+    ) || 0;
+
+  const transferBytes = projections?.totals.monthlyTransferBytes ?? 0;
+  const projectedBytes = projections?.totals.projectedStorageBytes ?? 0;
+  const estMonthlyCost =
+    egressCost(transferBytes, egressRatePerGB) +
+    storageCost(projectedBytes, storageRatePerGBMonth);
+
+  const projectionHighlights = [
+    {
+      icon: ScrollText,
+      label: "Active Policies",
+      value: String(projections?.totals.activePolicies ?? 0),
+      iconClass: "text-success-500",
+    },
+    {
+      icon: ArrowUpFromLine,
+      label: "Transfer / Month",
+      value: formatBytes(transferBytes),
+      iconClass: "text-primary-500",
+    },
+    {
+      icon: TrendingUp,
+      label: "Storage in 30 Days",
+      value: formatBytes(projectedBytes),
+      iconClass: "text-warning-500",
+    },
+    {
+      icon: CircleDollarSign,
+      label: "Est. Cost / Month",
+      value: formatCost(estMonthlyCost),
+      iconClass: "text-danger-500",
+    },
+  ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-10">
       {connection && (
         <>
           {/* Header Section */}
@@ -71,18 +136,25 @@ export default function ConnectionOverview() {
                 </h2>
                 <p className="text-sm text-default-500 flex items-center gap-2">
                   <Globe className="w-4 h-4" />
-                  {connection.host}:{connection.port}
+                  {connection.host.includes(":")
+                    ? connection.host
+                    : `${connection.host}:${connection.port}`}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <Badge
-                color={status.status === "connected" ? "success" : "danger"}
+            <div className="flex items-center gap-3 flex-wrap">
+              <Chip
+                size="sm"
                 variant="flat"
-                className="text-xs"
+                color={
+                  connection.scheme === "mongodb+srv" ? "success" : "default"
+                }
               >
-                {status.status === "connected" ? "Online" : "Offline"}
+                {connection.scheme}
+              </Chip>
+              <Badge color="success" variant="flat" className="text-xs">
+                Online
               </Badge>
               <Button
                 size="sm"
@@ -97,163 +169,233 @@ export default function ConnectionOverview() {
             </div>
           </div>
 
-          {/* Stats Cards */}
+          {/* Actual Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="border border-default-200/50 bg-background/50 backdrop-blur-sm">
-              <CardBody className="flex flex-row items-center gap-3 p-4">
-                <div className="p-2 bg-success-100/50 rounded-lg">
-                  <Database className="w-5 h-5 text-success-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-default-500">Databases</p>
-                  <p className="text-lg font-semibold text-foreground">
-                    {connection.databases.length}
-                  </p>
-                </div>
-              </CardBody>
-            </Card>
-
-            <Card className="border border-default-200/50 bg-background/50 backdrop-blur-sm">
-              <CardBody className="flex flex-row items-center gap-3 p-4">
-                <div className="p-2 bg-warning-100/50 rounded-lg">
-                  <Activity className="w-5 h-5 text-warning-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-default-500">Latency</p>
-                  <p className="text-lg font-semibold text-foreground">
-                    {status.latency}
-                  </p>
-                </div>
-              </CardBody>
-            </Card>
-
-            <Card className="border border-default-200/50 bg-background/50 backdrop-blur-sm">
-              <CardBody className="flex flex-row items-center gap-3 p-4">
-                <div className="p-2 bg-info-100/50 rounded-lg">
-                  <Shield className="w-5 h-5 text-info-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-default-500">Security</p>
-                  <p className="text-lg font-semibold text-foreground">
-                    {connection.scheme.toUpperCase()}
-                  </p>
-                </div>
-              </CardBody>
-            </Card>
-
-            <Card className="border border-default-200/50 bg-background/50 backdrop-blur-sm">
-              <CardBody className="flex flex-row items-center gap-3 p-4">
-                <div className="p-2 bg-secondary-100/50 rounded-lg">
-                  <Clock className="w-5 h-5 text-secondary-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-default-500">Last Sync</p>
-                  <p className="text-lg font-semibold text-foreground">
-                    {status.lastSync}
-                  </p>
-                </div>
-              </CardBody>
-            </Card>
+            <StatCard
+              icon={Database}
+              label="Databases"
+              value={String(connection.databases?.length ?? 0)}
+              sub={`${collectionCount} collections`}
+              tone="primary"
+            />
+            <StatCard
+              icon={Layers}
+              label="Storage Used"
+              value={
+                showSkeleton ? "—" : formatBytes(actual?.currentStorageBytes ?? 0)
+              }
+              sub={
+                actual
+                  ? `${formatBytes(actual.backups.storedBytes)} backups + ${formatBytes(actual.snapshots.storedBytes)} snapshots`
+                  : undefined
+              }
+              tone="success"
+            />
+            <StatCard
+              icon={HardDrive}
+              label="Backups"
+              value={showSkeleton ? "—" : String(actual?.backups.total ?? 0)}
+              sub={
+                actual
+                  ? successRate(actual.backups.success, actual.backups.total)
+                  : undefined
+              }
+              tone="secondary"
+            />
+            <StatCard
+              icon={Camera}
+              label="Snapshots"
+              value={showSkeleton ? "—" : String(actual?.snapshots.total ?? 0)}
+              sub={
+                actual
+                  ? successRate(
+                      actual.snapshots.success,
+                      actual.snapshots.total
+                    )
+                  : undefined
+              }
+              tone="warning"
+            />
           </div>
+
+          {/* Projections strip */}
+          <Card className="border border-warning-200/30 bg-gradient-to-r from-warning-50/5 to-danger-50/5 backdrop-blur-sm">
+            <CardBody className="p-4">
+              <div className="flex flex-col xl:flex-row xl:items-center gap-4">
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="p-2 bg-warning-100/50 rounded-lg">
+                    <TrendingUp className="w-5 h-5 text-warning-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">
+                      Projections
+                    </p>
+                    <p className="text-xs text-default-400">Estimates</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1">
+                  {projectionHighlights.map((item) => (
+                    <div key={item.label} className="flex items-center gap-2">
+                      <item.icon
+                        className={`w-4 h-4 flex-shrink-0 ${item.iconClass}`}
+                      />
+                      <div className="min-w-0">
+                        <p className="text-xs text-default-500 truncate">
+                          {item.label}
+                        </p>
+                        {showSkeleton ? (
+                          <Skeleton className="rounded w-12 h-4 mt-0.5" />
+                        ) : (
+                          <p className="text-sm font-semibold text-foreground truncate">
+                            {item.value}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <Button
+                  size="sm"
+                  variant="flat"
+                  color="warning"
+                  className="flex-shrink-0 font-medium"
+                  endContent={<ArrowRight className="w-4 h-4" />}
+                  onPress={() =>
+                    navigate(
+                      `/connection/${connection.connectionID}?tab=analytics`
+                    )
+                  }
+                >
+                  Full Analytics
+                </Button>
+              </div>
+            </CardBody>
+          </Card>
 
           {/* Main Content Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Connection Details */}
-            <Card className="lg:col-span-2 border border-default-200/50 bg-background/50 backdrop-blur-sm">
-              <CardHeader className="flex items-center gap-3 pb-3">
-                <Server className="w-5 h-5 text-primary-600" />
-                <h3 className="text-lg font-semibold text-foreground">
-                  Connection Details
-                </h3>
-              </CardHeader>
-              <Divider />
-              <CardBody className="pt-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-default-500 flex items-center gap-2">
-                        <Info className="w-4 h-4" />
-                        Connection ID
-                      </span>
-                      <Chip
-                        size="sm"
-                        variant="flat"
-                        color="primary"
-                        className="font-mono text-xs"
-                      >
-                        {connection.connectionID}
-                      </Chip>
+            <div className="lg:col-span-2 space-y-6">
+              {/* Activity chart */}
+              <Card className="border border-default-200/50 bg-background/50 backdrop-blur-sm">
+                <CardHeader className="flex items-center gap-3 pb-3">
+                  <BarChart3 className="w-5 h-5 text-primary-600" />
+                  <h3 className="text-lg font-semibold text-foreground">
+                    Data Created Per Month
+                  </h3>
+                </CardHeader>
+                <Divider />
+                <CardBody className="pt-4">
+                  {actual ? (
+                    <MonthlyActivityChart data={actual.monthlySeries} />
+                  ) : (
+                    <Skeleton className="rounded-lg w-full h-[260px]" />
+                  )}
+                </CardBody>
+              </Card>
+
+              {/* Connection Details */}
+              <Card className="border border-default-200/50 bg-background/50 backdrop-blur-sm">
+                <CardHeader className="flex items-center gap-3 pb-3">
+                  <Server className="w-5 h-5 text-primary-600" />
+                  <h3 className="text-lg font-semibold text-foreground">
+                    Connection Details
+                  </h3>
+                </CardHeader>
+                <Divider />
+                <CardBody className="pt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-default-500 flex items-center gap-2">
+                          <Info className="w-4 h-4" />
+                          Connection ID
+                        </span>
+                        <Chip
+                          size="sm"
+                          variant="flat"
+                          color="primary"
+                          className="font-mono text-xs"
+                        >
+                          {connection.connectionID}
+                        </Chip>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-default-500">Name</span>
+                        <span className="text-sm font-medium text-foreground">
+                          {connection.name}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-default-500">
+                          Cluster
+                        </span>
+                        <span className="text-sm font-medium text-foreground">
+                          {connection.host.split(".")[0]}
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-default-500">Name</span>
-                      <span className="text-sm font-medium text-foreground">
-                        {connection.name}
-                      </span>
-                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-default-500">Host</span>
+                        <span className="text-sm font-medium text-foreground font-mono">
+                          {connection.host}
+                        </span>
+                      </div>
 
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-default-500">Cluster</span>
-                      <span className="text-sm font-medium text-foreground">
-                        {connection.host.split(".")[0]}
-                      </span>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-default-500">Port</span>
+                        <span className="text-sm font-medium text-foreground">
+                          {connection.port}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-default-500">
+                          Protocol
+                        </span>
+                        <Chip
+                          size="sm"
+                          variant="flat"
+                          color={
+                            connection.scheme === "mongodb+srv"
+                              ? "success"
+                              : "default"
+                          }
+                          className="text-xs"
+                        >
+                          {connection.scheme}
+                        </Chip>
+                      </div>
                     </div>
                   </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-default-500">Host</span>
-                      <span className="text-sm font-medium text-foreground font-mono">
-                        {connection.host}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-default-500">Port</span>
-                      <span className="text-sm font-medium text-foreground">
-                        {connection.port}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-default-500">Protocol</span>
-                      <Chip
-                        size="sm"
-                        variant="flat"
-                        color={
-                          connection.scheme === "mongodb+srv"
-                            ? "success"
-                            : "default"
-                        }
-                        className="text-xs"
-                      >
-                        {connection.scheme}
-                      </Chip>
-                    </div>
-                  </div>
-                </div>
-              </CardBody>
-            </Card>
+                </CardBody>
+              </Card>
+            </div>
 
             {/* Databases List */}
-            <Card className="border border-default-200/50 bg-background/50 backdrop-blur-sm">
+            <Card className="border border-default-200/50 bg-background/50 backdrop-blur-sm h-fit">
               <CardHeader className="flex items-center gap-3 pb-3">
                 <HardDrive className="w-5 h-5 text-primary-600" />
                 <h3 className="text-lg font-semibold text-foreground">
                   Databases
                 </h3>
                 <Badge color="primary" variant="flat" size="sm">
-                  {connection.databases.length}
+                  {connection.databases?.length ?? 0}
                 </Badge>
               </CardHeader>
               <Divider />
-              <CardBody className="pt-4">
+              <CardBody className="pt-4 max-h-[560px] overflow-y-auto">
                 <Listbox
                   className="w-full"
                   aria-label="Database list"
                   variant="flat"
                 >
-                  {connection.databases.map((db, index) => (
+                  {(connection.databases ?? []).map((db, index) => (
                     <ListboxItem
                       key={index}
                       className="rounded-lg mb-1 hover:bg-default-100"
@@ -268,8 +410,9 @@ export default function ConnectionOverview() {
                           {db.toUpperCase()}
                         </span>
                         <span className="text-xs text-default-500">
-                          {connection.collections.find((c) => c.database === db)
-                            ?.collections.length || 0}{" "}
+                          {connection.collections?.find(
+                            (c) => c.database === db
+                          )?.collections.length || 0}{" "}
                           collections
                         </span>
                       </div>
