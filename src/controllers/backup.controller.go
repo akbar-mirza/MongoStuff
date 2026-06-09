@@ -170,7 +170,6 @@ func DeleteBackupPolicy(c *fiber.Ctx) error {
 	})
 }
 
-
 // ====[Backup]====
 // TriggerBackup manually triggers a backup for a policy
 func TriggerBackup(c *fiber.Ctx) error {
@@ -213,8 +212,10 @@ func BackupsForPolicy(c *fiber.Ctx) error {
 
 func BackupsForConnection(c *fiber.Ctx) error {
 	connectionID := c.Params("ConnID")
+	limit := c.QueryInt("limit", 10)
+	skip := c.QueryInt("skip", 0)
 
-	backups, err := services.GetAllLogs(connectionID)
+	backups, total, err := services.GetAllLogs(connectionID, &limit, &skip)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
@@ -223,14 +224,16 @@ func BackupsForConnection(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"backups": backups,
+		"total":   total,
 	})
 }
 
 // GetBackup gets a backup by ID
 func GetBackup(c *fiber.Ctx) error {
+	connectionID := c.Params("ConnID")
 	backupID := c.Params("BackupID")
 
-	backup, err := services.GetBackup(backupID)
+	backup, err := services.GetBackupForConnection(connectionID, backupID)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "Backup not found",

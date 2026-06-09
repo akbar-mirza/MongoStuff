@@ -27,34 +27,34 @@ func Dump(
 	PATH := os.Getenv("MONGODB_TOOLS_PATH")
 	fmt.Println("PATH:", PATH)
 	fmt.Println("Dumping Database:", params.Database)
-	var command = PATH + "mongodump" + " --uri=" + params.URI
+	args := []string{"--uri", params.URI}
 
 	// Entire Cluster Dump
 	if params.Database != "" {
-		command += " --db=" + params.Database
+		args = append(args, "--db", params.Database)
 	}
 
 	if params.OutputDir != "" && !params.Compression {
-		command += " --out=" + params.OutputDir
+		args = append(args, "--out", params.OutputDir)
 	}
 
 	if params.Compression {
-		command += " --archive=" + params.OutputDir + " --gzip"
+		args = append(args, "--archive", params.OutputDir, "--gzip")
 	}
 
 	if params.Collection != "" {
-		command += " --collection=" + params.Collection
+		args = append(args, "--collection", params.Collection)
 	}
 
 	if params.Collection == "" {
-		command += " --numParallelCollections=8"
+		args = append(args, "--numParallelCollections=8")
 	}
 
-	command += " --forceTableScan"
-	// command += " --readPreference=secondary"
+	args = append(args, "--forceTableScan")
 
-	fmt.Println("Command:", command)
-	output, err := exec.Command("bash", "-c", command).CombinedOutput()
+	command := exec.Command(PATH+"mongodump", args...)
+	fmt.Println("Command:", command.String())
+	output, err := command.CombinedOutput()
 	if err != nil {
 		fmt.Println("Errors", string(output))
 		return MongoDumpResponse{

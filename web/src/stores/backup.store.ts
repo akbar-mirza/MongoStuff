@@ -13,6 +13,7 @@ type BackupStore = {
 
   // Backup Logs
   backups: (TBackup | TBackupWithPolicyName)[];
+  backupsTotal: number;
 
   // Loading states
   isLoading: boolean;
@@ -54,7 +55,10 @@ type BackupStore = {
     connectionID: string,
     backupPolicyID: string
   ) => Promise<void>;
-  getBackupsForConnection: (connectionID: string) => Promise<void>;
+  getBackupsForConnection: (
+    connectionID: string,
+    options?: { page?: number; pageSize?: number; fetchAll?: boolean }
+  ) => Promise<void>;
   getBackupById: (
     connectionID: string,
     backupID: string
@@ -71,6 +75,7 @@ export const useBackupStore = create<BackupStore>((set, get) => ({
   backupPolicy: null,
   backupPolicies: [],
   backups: [],
+  backupsTotal: 0,
   isLoading: false,
   isCreating: false,
   isUpdating: false,
@@ -234,23 +239,38 @@ export const useBackupStore = create<BackupStore>((set, get) => ({
     set({ backups: backups ?? [], enablePolling, isLoading: false });
   },
 
-  getBackupsForConnection: async (connectionID: string) => {
+  getBackupsForConnection: async (
+    connectionID: string,
+    options?: { page?: number; pageSize?: number; fetchAll?: boolean }
+  ) => {
+    const page = options?.page ?? 1;
+    const pageSize = options?.pageSize ?? 10;
+    const fetchAll = options?.fetchAll ?? false;
+    const limit = fetchAll ? 0 : pageSize;
+    const skip = fetchAll ? 0 : (page - 1) * pageSize;
+
     set({ isLoading: true });
-    const { backups, error } = await BackupAPI.GetBackupsForConnectionRequest(
-      connectionID
-    );
+    const { backups, total, error } =
+      await BackupAPI.GetBackupsForConnectionRequest(connectionID, {
+        limit,
+        skip,
+      });
     if (error) {
       toast.error(error.error);
       set({ isLoading: false });
       return;
     }
 
-    // Check if any backups are in processing state for polling
     const enablePolling = backups?.some(
       (backup) => backup.status === "Processing" || backup.status === "Queued"
     );
 
-    set({ backups: backups ?? [], enablePolling, isLoading: false });
+    set({
+      backups: backups ?? [],
+      backupsTotal: total ?? backups?.length ?? 0,
+      enablePolling,
+      isLoading: false,
+    });
   },
 
   getBackupById: async (connectionID: string, backupID: string) => {

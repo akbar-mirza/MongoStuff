@@ -28,49 +28,49 @@ func Restore(
 	PATH := os.Getenv("MONGODB_TOOLS_PATH")
 	fmt.Println("PATH:", PATH)
 	fmt.Println("Restoring Database:", params.SourceDatabase)
-	var command = PATH + "mongorestore" + " --uri=" + params.URI
+	args := []string{"--uri", params.URI}
 
 	if params.SourceDatabase != "" && params.TargetDatabase != "" {
 		if params.SourceDatabase != "" {
-			command += " --nsFrom=" + params.SourceDatabase
-			command += ".*"
+			args = append(args, "--nsFrom", params.SourceDatabase+".*")
 		}
 
 		if params.TargetDatabase != "" {
-			command += " --nsTo=" + params.TargetDatabase
-			command += ".*"
+			args = append(args, "--nsTo", params.TargetDatabase+".*")
 		}
 	}
 
 	if params.SourceDatabase != "" {
-		command += " --nsInclude=" + params.SourceDatabase
+		nsInclude := params.SourceDatabase
 		if params.Collection != "" {
-			command += "." + params.Collection
+			nsInclude += "." + params.Collection
 		} else {
-			command += ".*"
+			nsInclude += ".*"
 		}
+		args = append(args, "--nsInclude", nsInclude)
 	}
 
 	if params.IsCompress {
-		command += " --gzip" + " --archive=" + params.BackupPath + ".gz"
+		args = append(args, "--gzip", "--archive", params.BackupPath+".gz")
 	}
 
 	if !params.IsCompress {
 		if params.SourceDatabase != "" {
-			command += " " + params.BackupPath + "/" + params.SourceDatabase
+			args = append(args, params.BackupPath+"/"+params.SourceDatabase)
 		} else {
-			command += " " + params.BackupPath
+			args = append(args, params.BackupPath)
 		}
 	}
 
 	// For Updating with Snapshot Version
 	if params.Update {
-		command += " --drop"
+		args = append(args, "--drop")
 	}
 
-	output, err := exec.Command("bash", "-c", command).CombinedOutput()
+	command := exec.Command(PATH+"mongorestore", args...)
+	output, err := command.CombinedOutput()
 
-	fmt.Println("Command:", command)
+	fmt.Println("Command:", command.String())
 	// fmt.Println("Output:", string(output))
 
 	if err != nil {

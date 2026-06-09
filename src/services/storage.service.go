@@ -165,6 +165,7 @@ func GetStorage(params GetStorageParams) (interfaces.Storage, error) {
 		context.TODO(),
 		bson.M{
 			"storageID": params.StorageID,
+			"userID":    params.UserID,
 		},
 	).Decode(&storage)
 	if err != nil {

@@ -1,13 +1,41 @@
 package controllers
 
 import (
-	"log/slog"
 	"mongostuff/src/interfaces"
 	"mongostuff/src/services"
+	"os"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
+
+func cookieSecure() bool {
+	return os.Getenv("COOKIE_SECURE") == "true"
+}
+
+func setSessionCookies(c *fiber.Ctx, sessionToken string, csrfToken string, expires time.Time) {
+	secure := cookieSecure()
+
+	c.Cookie(&fiber.Cookie{
+		Name:     "session",
+		Value:    sessionToken,
+		Expires:  expires,
+		Path:     "/",
+		HTTPOnly: true,
+		SameSite: "Lax",
+		Secure:   secure,
+	})
+
+	c.Cookie(&fiber.Cookie{
+		Name:     "csrf",
+		Value:    csrfToken,
+		Expires:  expires,
+		Path:     "/",
+		HTTPOnly: false,
+		SameSite: "Lax",
+		Secure:   secure,
+	})
+}
 
 func Register(
 	c *fiber.Ctx,
@@ -29,19 +57,7 @@ func Register(
 		return err
 	}
 
-	c.Cookie(&fiber.Cookie{
-		Name:     "session",
-		Value:    user.SessionToken,
-		Expires:  time.Now().Add(24 * time.Hour), // 24 hours
-		HTTPOnly: true,
-	})
-
-	c.Cookie(&fiber.Cookie{
-		Name:     "csrf",
-		Value:    user.CSRFToken,
-		Expires:  time.Now().Add(24 * time.Hour), // 24 hours
-		HTTPOnly: false,
-	})
+	setSessionCookies(c, user.SessionToken, user.CSRFToken, time.Now().Add(24*time.Hour))
 
 	return c.JSON(fiber.Map{
 		"message": "User created successfully",
@@ -68,19 +84,7 @@ func Login(
 		})
 	}
 
-	c.Cookie(&fiber.Cookie{
-		Name:     "session",
-		Value:    user.SessionToken,
-		Expires:  time.Now().Add(24 * time.Hour), // 24 hours
-		HTTPOnly: true,
-	})
-
-	c.Cookie(&fiber.Cookie{
-		Name:     "csrf",
-		Value:    user.CSRFToken,
-		Expires:  time.Now().Add(24 * time.Hour), // 24 hours
-		HTTPOnly: false,
-	})
+	setSessionCookies(c, user.SessionToken, user.CSRFToken, time.Now().Add(24*time.Hour))
 
 	return c.JSON(fiber.Map{
 		"message": "Login successful",
@@ -91,25 +95,14 @@ func Login(
 func Logout(
 	c *fiber.Ctx,
 ) error {
+	sessionToken := c.Cookies("session")
+	if err := services.RevokeSession(sessionToken); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to revoke session",
+		})
+	}
 
-	// remove cookies
-	c.Cookie(&fiber.Cookie{
-		Name:     "session",
-		Value:    "",                             // Empty value
-		Expires:  time.Now().Add(-1 * time.Hour), // Expired in the past
-		Path:     "/",
-		HTTPOnly: true,
-		SameSite: "Lax",
-	})
-
-	c.Cookie(&fiber.Cookie{
-		Name:     "csrf",
-		Value:    "",                             // Empty value
-		Expires:  time.Now().Add(-1 * time.Hour), // Expired in the past
-		Path:     "/",
-		HTTPOnly: false,
-		SameSite: "Lax",
-	})
+	setSessionCookies(c, "", "", time.Now().Add(-1*time.Hour))
 
 	return c.JSON(fiber.Map{
 		"message": "Logout successful",
@@ -119,22 +112,7 @@ func Logout(
 func GetCurrentUser(
 	c *fiber.Ctx,
 ) error {
-	sessionToken := c.Cookies("session")
-	// get header csrf token
-	csrfToken := c.Get("X-CSRF-Token")
-
-	slog.Info("sessionToken", "value", sessionToken)
-	slog.Info("csrfToken: ", "value", csrfToken)
-
-	user, err := services.GetCurrentUser(sessionToken, csrfToken)
-
-	slog.Info("user", "value", user, "err", err)
-	if err != nil {
-		return c.Status(400).JSON(fiber.Map{
-			"error": err.Error(),
-		})
-
-	}
+	user := c.Locals("User").(interfaces.User)
 
 	return c.JSON(fiber.Map{
 		"user": user,

@@ -12,6 +12,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+const sessionLifetime = 24 * time.Hour
+
 func FindUserByUsername(
 	username string,
 ) (
@@ -50,22 +52,31 @@ func Register(
 		return interfaces.User{}, errors.New("username already exists")
 	}
 
-	passwordHash, _ := libs.HashPassword(params.Password)
-	newUser := interfaces.User{
-		Username:     params.Username,
-		Password:     passwordHash,
-		SessionToken: libs.RandomString("sess_", 24),
-		CSRFToken:    libs.RandomString("csrf_", 24),
-		UserID:       libs.RandomString("user_", 24),
+	passwordHash, err := libs.HashPassword(params.Password)
+	if err != nil {
+		return interfaces.User{}, errors.New("error hashing password")
 	}
-	_, err := Collection.InsertOne(
+
+	sessionExpiresAt := time.Now().Add(sessionLifetime).Unix()
+	newUser := interfaces.User{
+		Username:         params.Username,
+		Password:         passwordHash,
+		SessionToken:     libs.RandomString("sess_", 32),
+		CSRFToken:        libs.RandomString("csrf_", 32),
+		UserID:           libs.RandomString("user_", 24),
+		LastLogin:        time.Now().Unix(),
+		SessionExpiresAt: sessionExpiresAt,
+	}
+	_, err = Collection.InsertOne(
 		context.TODO(),
 		bson.M{
-			"username":     newUser.Username,
-			"password":     newUser.Password,
-			"sessionToken": newUser.SessionToken,
-			"csrfToken":    newUser.CSRFToken,
-			"userID":       newUser.UserID,
+			"username":         newUser.Username,
+			"password":         newUser.Password,
+			"sessionToken":     newUser.SessionToken,
+			"csrfToken":        newUser.CSRFToken,
+			"userID":           newUser.UserID,
+			"lastLogin":        newUser.LastLogin,
+			"sessionExpiresAt": newUser.SessionExpiresAt,
 		},
 	)
 
@@ -73,6 +84,7 @@ func Register(
 		return interfaces.User{}, errors.New("error inserting user into the database")
 	}
 
+	newUser.Password = ""
 	return newUser, nil
 }
 
@@ -92,23 +104,28 @@ func Login(
 		},
 	).Decode(&user)
 
-	user.SessionToken = libs.RandomString("sess_", 24)
-	user.CSRFToken = libs.RandomString("csrf_", 24)
-
 	if err != nil {
 		return interfaces.User{}, errors.New("user not found")
 	}
 
 	if libs.ComparePassword(user.Password, password) {
+		user.SessionToken = libs.RandomString("sess_", 32)
+		user.CSRFToken = libs.RandomString("csrf_", 32)
+		user.LastLogin = time.Now().Unix()
+		user.SessionExpiresAt = time.Now().Add(sessionLifetime).Unix()
 		user.Password = ""
-		_ = Collection.FindOneAndUpdate(
+		updateErr := Collection.FindOneAndUpdate(
 			context.TODO(),
 			bson.M{"userID": user.UserID},
 			bson.M{"$set": bson.M{"sessionToken": user.SessionToken, "csrfToken": user.CSRFToken,
-				"lastLogin": time.Now().Unix(),
+				"lastLogin":        user.LastLogin,
+				"sessionExpiresAt": user.SessionExpiresAt,
 			}},
 			options.FindOneAndUpdate().SetReturnDocument(options.After),
-		)
+		).Err()
+		if updateErr != nil {
+			return interfaces.User{}, errors.New("failed to update user session")
+		}
 
 		return user, nil
 	}
@@ -135,5 +152,29 @@ func GetCurrentUser(
 		return interfaces.User{}, errors.New("no user found")
 	}
 
+	if user.SessionExpiresAt != 0 && time.Now().Unix() > user.SessionExpiresAt {
+		_ = RevokeSession(sessionToken)
+		return interfaces.User{}, errors.New("session expired")
+	}
+
+	user.Password = ""
 	return user, nil
+}
+
+func RevokeSession(sessionToken string) error {
+	var Collection = global.GetCollection("users")
+
+	if sessionToken == "" {
+		return nil
+	}
+
+	return Collection.FindOneAndUpdate(
+		context.TODO(),
+		bson.M{"sessionToken": sessionToken},
+		bson.M{"$set": bson.M{
+			"sessionToken":     "",
+			"csrfToken":        "",
+			"sessionExpiresAt": 0,
+		}},
+	).Err()
 }

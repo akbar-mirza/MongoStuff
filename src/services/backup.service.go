@@ -265,8 +265,11 @@ func GetBackUpLogs(
 
 func GetAllLogs(
 	connectionID string,
+	limit *int,
+	skip *int,
 ) (
 	[]interfaces.BackupWithPolicyName,
+	int64,
 	error,
 ) {
 	var Collection = global.GetCollection(global.BackupsCollection)
@@ -281,56 +284,64 @@ func GetAllLogs(
 		},
 	)
 	if err != nil {
-		return []interfaces.BackupWithPolicyName{}, err
+		return []interfaces.BackupWithPolicyName{}, 0, err
+	}
+
+	matchFilter := bson.M{
+		"backupPolicyID": bson.M{"$in": backupPolicyIDs},
+	}
+
+	total, err := Collection.CountDocuments(context.TODO(), matchFilter)
+	if err != nil {
+		return []interfaces.BackupWithPolicyName{}, 0, err
+	}
+
+	pipeline := []bson.M{
+		{"$match": matchFilter},
+		{
+			"$lookup": bson.M{
+				"from":         global.BackupPoliciesCollection,
+				"localField":   "backupPolicyID",
+				"foreignField": "backupPolicyID",
+				"as":           "backupPolicy",
+			},
+		},
+		{
+			"$addFields": bson.M{
+				"policyName": bson.M{"$arrayElemAt": bson.A{"$backupPolicy.name", 0}},
+			},
+		},
+		{"$unset": "logs"},
+		{
+			"$sort": bson.M{
+				"timestamp": -1,
+			},
+		},
+	}
+
+	if *skip > 0 {
+		pipeline = append(pipeline, bson.M{"$skip": int64(*skip)})
+	}
+	if *limit > 0 {
+		pipeline = append(pipeline, bson.M{"$limit": int64(*limit)})
 	}
 
 	backups := []interfaces.BackupWithPolicyName{}
-	cursor, err := Collection.Aggregate(
-		context.TODO(),
-		[]bson.M{
-			{
-				"$match": bson.M{
-					"backupPolicyID": bson.M{"$in": backupPolicyIDs},
-				},
-			},
-			{
-				"$lookup": bson.M{
-					"from":         global.BackupPoliciesCollection,
-					"localField":   "backupPolicyID",
-					"foreignField": "backupPolicyID",
-					"as":           "backupPolicy",
-				},
-			},
-			{
-				"$addFields": bson.M{
-					"policyName": bson.M{"$arrayElemAt": bson.A{"$backupPolicy.name", 0}},
-				},
-			},
-			{
-				"$unset": "logs",
-			},
-			{
-				"$sort": bson.M{
-					"timestamp": -1,
-				},
-			},
-		},
-	)
-
+	cursor, err := Collection.Aggregate(context.TODO(), pipeline)
 	if err != nil {
-		return []interfaces.BackupWithPolicyName{}, err
+		return []interfaces.BackupWithPolicyName{}, 0, err
 	}
 	defer cursor.Close(context.TODO())
 	for cursor.Next(context.TODO()) {
 		var backup interfaces.BackupWithPolicyName
 		err := cursor.Decode(&backup)
 		if err != nil {
-			return []interfaces.BackupWithPolicyName{}, err
+			return []interfaces.BackupWithPolicyName{}, 0, err
 		}
 		backups = append(backups, backup)
 	}
 
-	return backups, nil
+	return backups, total, nil
 }
 
 func GetBackup(backupID string) (interfaces.Backup, error) {
@@ -343,6 +354,24 @@ func GetBackup(backupID string) (interfaces.Backup, error) {
 	if err != nil {
 		return interfaces.Backup{}, err
 	}
+	return backup, nil
+}
+
+func GetBackupForConnection(connectionID string, backupID string) (interfaces.Backup, error) {
+	backup, err := GetBackup(backupID)
+	if err != nil {
+		return interfaces.Backup{}, err
+	}
+
+	backupPolicy, err := GetBackUpPolicy(backup.BackupPolicyID, &connectionID)
+	if err != nil {
+		return interfaces.Backup{}, err
+	}
+
+	if backupPolicy.ConnectionID != connectionID {
+		return interfaces.Backup{}, fmt.Errorf("backup not found")
+	}
+
 	return backup, nil
 }
 
@@ -408,8 +437,9 @@ func InitCron() {
 	// start cron
 	SCHEDULER.Start()
 
+	deleteCronExp, err := libs.UnitToCron(1, libs.Hour)
 	// add delete old backups to every hour
-	SCHEDULER.AddJob("delete_old_backups", "0 0 * * * *",
+	SCHEDULER.AddJob("delete_old_backups", deleteCronExp,
 		func() {
 			DeleteBackupsByRetention(nil)
 		},
@@ -669,8 +699,8 @@ func DeleteBackup(backupID string) {
 
 	// Delete snapshot from storage
 	if backup.Artifact.Key != "" {
-		storage, err := GetStorage(
-			GetStorageParams{
+		storage, err := GetStorageByID(
+			GetStorageByIDParams{
 				StorageID: backup.StorageID,
 			},
 		)
@@ -760,9 +790,8 @@ func DeleteBackupsByRetention(
 		}
 		fmt.Println("Deleting backup", backup.BackupID)
 		backupIds = append(backupIds, backup.BackupID)
-		go DeleteBackup(backup.BackupID)  
+		go DeleteBackup(backup.BackupID)
 	}
 
-	
 	return backupIds, nil
 }

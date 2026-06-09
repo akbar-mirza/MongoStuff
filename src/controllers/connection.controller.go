@@ -21,6 +21,8 @@ func AddConnection(
 		return err
 	}
 
+	params.UserID = c.Locals("UserID").(string)
+
 	connection := services.AddConnection(
 		params,
 	)

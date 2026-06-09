@@ -60,9 +60,10 @@ func GetSnapshots(
 func GetSnapshot(
 	c *fiber.Ctx,
 ) error {
+	ConnID := c.Params("ConnID")
 	SnapID := c.Params("SnapID")
 
-	snap, err := services.GetSnapshot(SnapID)
+	snap, err := services.GetSnapshotForConnection(ConnID, SnapID)
 	if err != nil {
 		return c.JSON(fiber.Map{
 			"error": err.Error(),
@@ -74,8 +75,9 @@ func GetSnapshot(
 func DownloadSnapshot(
 	c *fiber.Ctx,
 ) error {
+	ConnID := c.Params("ConnID")
 	SnapID := c.Params("SnapID")
-	downloadPath, error := services.DownloadSnapshot(SnapID)
+	downloadPath, error := services.DownloadSnapshot(ConnID, SnapID)
 	slog.Info("Downloading Snapshot", "SnapshotID", SnapID, "OutputFile", downloadPath.FilePath, "FileName", downloadPath.FileNameWithExt)
 	if error != nil {
 		return c.JSON(fiber.Map{
@@ -93,8 +95,9 @@ func DownloadSnapshot(
 func DownloadSnapshotFromStorage(
 	c *fiber.Ctx,
 ) error {
+	ConnID := c.Params("ConnID")
 	SnapID := c.Params("SnapID")
-	downloadPath, error := services.DownloadSnapshotFromStorage(SnapID)
+	downloadPath, error := services.DownloadSnapshotFromStorage(ConnID, SnapID)
 	slog.Info("Downloading Snapshot from Storage", "SnapshotID", SnapID, "OutputFile", downloadPath)
 	if error != nil {
 		return c.JSON(fiber.Map{
@@ -110,6 +113,7 @@ func DownloadSnapshotFromStorage(
 func UpdateSnapshotTags(
 	c *fiber.Ctx,
 ) error {
+	ConnID := c.Params("ConnID")
 	SnapID := c.Params("SnapID")
 	var body struct {
 		Tags []string `json:"tags"`
@@ -118,6 +122,7 @@ func UpdateSnapshotTags(
 		return err
 	}
 	snap, err := services.UpdateSnapshotTags(
+		ConnID,
 		SnapID,
 		body.Tags,
 	)
@@ -132,8 +137,9 @@ func UpdateSnapshotTags(
 func DeleteSnapshot(
 	c *fiber.Ctx,
 ) error {
+	ConnID := c.Params("ConnID")
 	SnapID := c.Params("SnapID")
-	err := services.DeleteSnapshot(SnapID)
+	err := services.DeleteSnapshot(ConnID, SnapID)
 	if err != nil {
 		return c.JSON(fiber.Map{
 			"error": err.Error(),

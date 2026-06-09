@@ -1,12 +1,11 @@
 import { toast } from "sonner";
 import { create } from "zustand";
-import { ClearCookies } from "../api";
 import { AuthAPI } from "../api/auth";
 
 export type User = {
   username: string;
   userID: string;
-  csrfToken: string;
+  lastLogin: number;
 };
 
 type AuthStore = {
@@ -41,7 +40,6 @@ export const useAuthStore = create<AuthStore>((set) => ({
   setIsAuthModalOpen: (isOpen: boolean) => set({ isAuthModalOpen: isOpen }),
   signOut: async () => {
     await AuthAPI.LogoutRequest();
-    // remove all cookies
-    ClearCookies();
+    set({ user: null, isAuth: false, isAuthModalOpen: true });
   },
 }));

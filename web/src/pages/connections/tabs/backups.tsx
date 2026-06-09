@@ -11,7 +11,6 @@ import {
   Pagination,
   Select,
   SelectItem,
-  Spacer,
   Spinner,
   Switch,
   Table,
@@ -332,9 +331,18 @@ export function RenderBackupLogs({ backup }: { backup: TBackup }) {
 }
 
 // Main Backup Logs Component
+const BACKUP_PAGE_SIZE = 10;
+
 export default function ConnectionBackups() {
-  const { getBackupsForConnection, backups, enablePolling, isLoading } =
-    useBackupStore();
+  const {
+    getBackupsForConnection,
+    getBackupPolicies,
+    backupPolicies,
+    backups,
+    backupsTotal,
+    enablePolling,
+    isLoading,
+  } = useBackupStore();
   const { connection } = useConnectionStore();
   const { id } = useParams();
 
@@ -345,6 +353,25 @@ export default function ConnectionBackups() {
   const [selectedPolicy, setSelectedPolicy] = useState<string>("all");
   const [expiredFilter, setExpiredFilter] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
+  const [page, setPage] = React.useState(1);
+
+  const hasActiveFilters =
+    dateFilter !== "all" || selectedPolicy !== "all" || expiredFilter !== "all";
+
+  const fetchBackups = React.useCallback(
+    (connectionID: string, currentPage: number) => {
+      if (hasActiveFilters) {
+        getBackupsForConnection(connectionID, { fetchAll: true });
+        return;
+      }
+
+      getBackupsForConnection(connectionID, {
+        page: currentPage,
+        pageSize: BACKUP_PAGE_SIZE,
+      });
+    },
+    [getBackupsForConnection, hasActiveFilters]
+  );
 
   const columns = [
     { key: "backupID", label: "Backup ID" },
@@ -361,35 +388,31 @@ export default function ConnectionBackups() {
 
   useEffect(() => {
     if (id) {
-      getBackupsForConnection(id);
+      getBackupPolicies(id);
     }
-  }, [id]);
+  }, [id, getBackupPolicies]);
+
+  useEffect(() => {
+    if (id) {
+      fetchBackups(id, page);
+    }
+  }, [id, page, fetchBackups]);
 
   useEffect(() => {
     if (enablePolling && id) {
       const interval = setInterval(() => {
-        getBackupsForConnection(id);
+        fetchBackups(id, page);
       }, POLLING_INTERVAL);
       return () => clearInterval(interval);
     }
-  }, [id, enablePolling]);
+  }, [id, enablePolling, page, fetchBackups]);
 
-  // Get unique backup policies from backups
   const uniquePolicies = useMemo(() => {
-    const policies = new Map<string, string>();
-    backups?.forEach((backup) => {
-      if (backup.backupPolicyID && !policies.has(backup.backupPolicyID)) {
-        policies.set(
-          backup.backupPolicyID,
-          (backup as TBackupWithPolicyName).policyName || backup.backupPolicyID
-        );
-      }
-    });
-    return Array.from(policies.entries()).map(([id, name]) => ({
-      id,
-      name,
+    return (backupPolicies ?? []).map((policy) => ({
+      id: policy.backupPolicyID,
+      name: policy.name,
     }));
-  }, [backups]);
+  }, [backupPolicies]);
 
   // Filter backups based on selected filters
   const filteredBackups = useMemo(() => {
@@ -460,6 +483,32 @@ export default function ConnectionBackups() {
     return filtered;
   }, [
     backups,
+    dateFilter,
+    customStartDate,
+    customEndDate,
+    selectedPolicy,
+    expiredFilter,
+    hasActiveFilters,
+  ]);
+
+  const pages = hasActiveFilters
+    ? Math.ceil((filteredBackups?.length || 0) / BACKUP_PAGE_SIZE)
+    : Math.ceil(backupsTotal / BACKUP_PAGE_SIZE);
+
+  const items = React.useMemo(() => {
+    if (hasActiveFilters) {
+      const start = (page - 1) * BACKUP_PAGE_SIZE;
+      const end = start + BACKUP_PAGE_SIZE;
+      return filteredBackups?.slice(start, end) || [];
+    }
+
+    return backups ?? [];
+  }, [page, filteredBackups, backups, hasActiveFilters]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [
     dateFilter,
     customStartDate,
     customEndDate,
@@ -630,37 +679,227 @@ export default function ConnectionBackups() {
     []
   );
 
-  const [page, setPage] = React.useState(1);
-  const rowsPerPage = 10;
-  const pages = Math.ceil((filteredBackups?.length || 0) / rowsPerPage);
-
-  const items = React.useMemo(() => {
-    const start = (page - 1) * rowsPerPage;
-    const end = start + rowsPerPage;
-    return filteredBackups?.slice(start, end) || [];
-  }, [page, rowsPerPage, filteredBackups]);
-
-  // Reset page when filters change
-  useEffect(() => {
-    setPage(1);
-  }, [
-    dateFilter,
-    customStartDate,
-    customEndDate,
-    selectedPolicy,
-    expiredFilter,
-  ]);
-
-  const clearFilters = () => {
+  const clearFilters = React.useCallback(() => {
     setDateFilter("all");
     setCustomStartDate("");
     setCustomEndDate("");
     setSelectedPolicy("all");
     setExpiredFilter("all");
-  };
+  }, []);
 
-  const hasActiveFilters =
-    dateFilter !== "all" || selectedPolicy !== "all" || expiredFilter !== "all";
+  const displayedTotal = hasActiveFilters
+    ? filteredBackups.length
+    : backupsTotal;
+
+  const hasTableData = hasActiveFilters
+    ? filteredBackups.length > 0
+    : backupsTotal > 0;
+
+  const tableTopContent = React.useMemo(
+    () => (
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Database size={18} />
+              <span className="text-base font-semibold">
+                {connection?.name} Backup History
+              </span>
+            </div>
+            {enablePolling && (
+              <Chip
+                color="success"
+                size="sm"
+                variant="light"
+                startContent={<Spinner variant="spinner" size="sm" />}
+              >
+                Monitoring Active Backups
+              </Chip>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              variant={showFilters ? "solid" : "flat"}
+              color={showFilters ? "primary" : "default"}
+              onPress={() => setShowFilters(!showFilters)}
+              startContent={<Filter size={16} />}
+            >
+              Filters
+            </Button>
+            {hasActiveFilters && (
+              <Chip
+                size="sm"
+                variant="flat"
+                color="primary"
+                onClose={clearFilters}
+              >
+                {filteredBackups.length} of {backups?.length || 0}
+              </Chip>
+            )}
+            {!hasActiveFilters && backupsTotal > 0 && (
+              <Chip size="sm" variant="flat" color="default">
+                {backupsTotal} total
+              </Chip>
+            )}
+          </div>
+        </div>
+
+        {showFilters && (
+          <div className="rounded-lg border border-default-200 bg-default-50 p-4">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Filter size={18} />
+                <p className="text-sm font-semibold">Filter Backups</p>
+              </div>
+              {hasActiveFilters && (
+                <Button
+                  size="sm"
+                  variant="light"
+                  color="danger"
+                  onPress={clearFilters}
+                  startContent={<X size={14} />}
+                >
+                  Clear All
+                </Button>
+              )}
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Date Range</label>
+                <Select
+                  selectedKeys={[dateFilter]}
+                  onSelectionChange={(keys) => {
+                    const value = Array.from(keys)[0] as string;
+                    setDateFilter(value);
+                    if (value !== "custom") {
+                      setCustomStartDate("");
+                      setCustomEndDate("");
+                    }
+                  }}
+                  label="Select Date Range"
+                  size="sm"
+                >
+                  <SelectItem key="all">All Time</SelectItem>
+                  <SelectItem key="last7">Last 7 Days</SelectItem>
+                  <SelectItem key="last30">Last 30 Days</SelectItem>
+                  <SelectItem key="lastWeek">Last Week</SelectItem>
+                  <SelectItem key="custom">Custom Range</SelectItem>
+                </Select>
+                {dateFilter === "custom" && (
+                  <div className="mt-2 flex flex-col gap-2">
+                    <Input
+                      type="date"
+                      label="Start Date"
+                      size="sm"
+                      value={customStartDate}
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                    />
+                    <Input
+                      type="date"
+                      label="End Date"
+                      size="sm"
+                      value={customEndDate}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Backup Policy</label>
+                <Select
+                  selectedKeys={[selectedPolicy]}
+                  onSelectionChange={(keys) => {
+                    const value = Array.from(keys)[0] as string;
+                    setSelectedPolicy(value);
+                  }}
+                  label="Select Policy"
+                  size="sm"
+                >
+                  <SelectItem key="all">All Policies</SelectItem>
+                  {
+                    uniquePolicies?.map((policy) => (
+                      <SelectItem key={policy.id}>{policy.name}</SelectItem>
+                    )) as any
+                  }
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Expiration Status</label>
+                <Select
+                  selectedKeys={[expiredFilter]}
+                  onSelectionChange={(keys) => {
+                    const value = Array.from(keys)[0] as string;
+                    setExpiredFilter(value);
+                  }}
+                  label="Select Status"
+                  size="sm"
+                >
+                  <SelectItem key="all">All</SelectItem>
+                  <SelectItem key="expired">Expired</SelectItem>
+                  <SelectItem key="notExpired">Not Expired</SelectItem>
+                </Select>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    ),
+    [
+      connection?.name,
+      enablePolling,
+      showFilters,
+      hasActiveFilters,
+      filteredBackups.length,
+      backups?.length,
+      backupsTotal,
+      dateFilter,
+      customStartDate,
+      customEndDate,
+      selectedPolicy,
+      expiredFilter,
+      uniquePolicies,
+      clearFilters,
+    ]
+  );
+
+  const tableEmptyContent = hasActiveFilters ? (
+    <div className="flex flex-col items-center justify-center py-16">
+      <EmptyState
+        Icon={
+          <DotLottieReact
+            src="https://lottie.host/281813e4-12ea-4257-a041-69fc069edafe/dQopTPxL06.lottie"
+            loop
+            autoplay
+            backgroundColor="transparent"
+          />
+        }
+        Title="No backups match your filters"
+        Description="Try adjusting your filter criteria to see more results"
+        TitleClassName="-translate-y-20"
+        DescriptionClassName="-translate-y-20"
+      />
+    </div>
+  ) : (
+    <div className="flex flex-col items-center justify-center py-16">
+      <EmptyState
+        Icon={
+          <DotLottieReact
+            src="https://lottie.host/281813e4-12ea-4257-a041-69fc069edafe/dQopTPxL06.lottie"
+            loop
+            autoplay
+            backgroundColor="transparent"
+          />
+        }
+        Title="No backup logs found"
+        Description="Backup logs will appear here once backup policies are executed"
+        TitleClassName="-translate-y-20"
+        DescriptionClassName="-translate-y-20"
+      />
+    </div>
+  );
 
   if (isLoading) {
     return (
@@ -672,229 +911,49 @@ export default function ConnectionBackups() {
 
   return (
     <div className="w-full">
-      <div className="flex justify-between w-full items-center">
-        <div className="flex items-center justify-center gap-2">
-          {enablePolling && (
-            <Chip
-              color="success"
-              size="md"
-              variant="light"
-              startContent={<Spinner variant="spinner" size="sm" />}
-            >
-              Monitoring Active Backups
-            </Chip>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <Database size={16} />
-          <span className="text-sm text-default-600">
-            {connection?.name} Backup History
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant={showFilters ? "solid" : "flat"}
-            color={showFilters ? "primary" : "default"}
-            onPress={() => setShowFilters(!showFilters)}
-            startContent={<Filter size={16} />}
-          >
-            Filters
-          </Button>
-          {hasActiveFilters && (
-            <Chip
-              size="sm"
-              variant="flat"
-              color="primary"
-              onClose={clearFilters}
-            >
-              {filteredBackups.length} of {backups?.length || 0}
-            </Chip>
-          )}
-        </div>
-      </div>
-      <Spacer y={4} />
-
-      {showFilters && (
-        <div className="bg-default-50 p-4 rounded-lg border border-default-200 mb-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Filter size={18} />
-              <p className="text-sm font-semibold">Filter Backups</p>
+      <Table
+        aria-label="Backup logs table"
+        topContent={tableTopContent}
+        topContentPlacement="outside"
+        bottomContent={
+          hasTableData && pages > 1 ? (
+            <div className="flex w-full flex-col items-center gap-2">
+              <Pagination
+                isCompact
+                showControls
+                showShadow
+                color="default"
+                page={page}
+                total={pages}
+                onChange={(nextPage) => setPage(nextPage)}
+              />
+              <p className="text-xs text-default-500">
+                Page {page} of {pages} ({displayedTotal} backups)
+              </p>
             </div>
-            {hasActiveFilters && (
-              <Button
-                size="sm"
-                variant="light"
-                color="danger"
-                onPress={clearFilters}
-                startContent={<X size={14} />}
-              >
-                Clear All
-              </Button>
-            )}
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Date Filter */}
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Date Range</label>
-              <Select
-                selectedKeys={[dateFilter]}
-                onSelectionChange={(keys) => {
-                  const value = Array.from(keys)[0] as string;
-                  setDateFilter(value);
-                  if (value !== "custom") {
-                    setCustomStartDate("");
-                    setCustomEndDate("");
-                  }
-                }}
-                label="Select Date Range"
-                size="sm"
-              >
-                <SelectItem key="all">All Time</SelectItem>
-                <SelectItem key="last7">Last 7 Days</SelectItem>
-                <SelectItem key="last30">Last 30 Days</SelectItem>
-                <SelectItem key="lastWeek">Last Week</SelectItem>
-                <SelectItem key="custom">Custom Range</SelectItem>
-              </Select>
-              {dateFilter === "custom" && (
-                <div className="flex flex-col gap-2 mt-2">
-                  <Input
-                    type="date"
-                    label="Start Date"
-                    size="sm"
-                    value={customStartDate}
-                    onChange={(e) => setCustomStartDate(e.target.value)}
-                  />
-                  <Input
-                    type="date"
-                    label="End Date"
-                    size="sm"
-                    value={customEndDate}
-                    onChange={(e) => setCustomEndDate(e.target.value)}
-                  />
-                </div>
+          ) : null
+        }
+      >
+        <TableHeader columns={columns}>
+          {(column) => (
+            <TableColumn key={column.key}>{column.label}</TableColumn>
+          )}
+        </TableHeader>
+        <TableBody emptyContent={tableEmptyContent} items={items}>
+          {(item) => (
+            <TableRow key={item.backupID}>
+              {(columnKey) => (
+                <TableCell>
+                  {renderCell(
+                    item as unknown as TBackupWithPolicyName,
+                    columnKey as keyof (TBackupWithPolicyName | TBackup)
+                  )}
+                </TableCell>
               )}
-            </div>
-
-            {/* Policy Filter */}
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Backup Policy</label>
-              <Select
-                selectedKeys={[selectedPolicy]}
-                onSelectionChange={(keys) => {
-                  const value = Array.from(keys)[0] as string;
-                  setSelectedPolicy(value);
-                }}
-                label="Select Policy"
-                size="sm"
-              >
-                <SelectItem key="all">All Policies</SelectItem>
-                {
-                  uniquePolicies?.map((policy) => (
-                    <SelectItem key={policy.id}>{policy.name}</SelectItem>
-                  )) as any
-                }
-              </Select>
-            </div>
-
-            {/* Expired Status Filter */}
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Expiration Status</label>
-              <Select
-                selectedKeys={[expiredFilter]}
-                onSelectionChange={(keys) => {
-                  const value = Array.from(keys)[0] as string;
-                  setExpiredFilter(value);
-                }}
-                label="Select Status"
-                size="sm"
-              >
-                <SelectItem key="all">All</SelectItem>
-                <SelectItem key="expired">Expired</SelectItem>
-                <SelectItem key="notExpired">Not Expired</SelectItem>
-              </Select>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <Spacer y={2} />
-
-      {filteredBackups && filteredBackups.length > 0 ? (
-        <Table
-          aria-label="Backup logs table"
-          bottomContent={
-            pages > 1 ? (
-              <div className="flex justify-center w-full">
-                <Pagination
-                  isCompact
-                  showControls
-                  showShadow
-                  color="default"
-                  page={page}
-                  total={pages}
-                  onChange={(page) => setPage(page)}
-                />
-              </div>
-            ) : null
-          }
-        >
-          <TableHeader columns={columns}>
-            {(column) => (
-              <TableColumn key={column.key}>{column.label}</TableColumn>
-            )}
-          </TableHeader>
-          <TableBody items={items}>
-            {(item) => (
-              <TableRow key={item.backupID}>
-                {(columnKey) => (
-                  <TableCell>
-                    {renderCell(
-                      item as unknown as TBackupWithPolicyName,
-                      columnKey as keyof (TBackupWithPolicyName | TBackup)
-                    )}
-                  </TableCell>
-                )}
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      ) : backups && backups.length > 0 ? (
-        <div className="flex flex-col items-center justify-center h-80">
-          <EmptyState
-            Icon={
-              <DotLottieReact
-                src="https://lottie.host/281813e4-12ea-4257-a041-69fc069edafe/dQopTPxL06.lottie"
-                loop
-                autoplay
-                backgroundColor="transparent"
-              />
-            }
-            Title="No backups match your filters"
-            Description="Try adjusting your filter criteria to see more results"
-            TitleClassName="-translate-y-20"
-            DescriptionClassName="-translate-y-20"
-          />
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center h-80">
-          <EmptyState
-            Icon={
-              <DotLottieReact
-                src="https://lottie.host/281813e4-12ea-4257-a041-69fc069edafe/dQopTPxL06.lottie"
-                loop
-                autoplay
-                backgroundColor="transparent"
-              />
-            }
-            Title="No backup logs found"
-            Description="Backup logs will appear here once backup policies are executed"
-            TitleClassName="-translate-y-20"
-            DescriptionClassName="-translate-y-20"
-          />
-        </div>
-      )}
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
     </div>
   );
 }
