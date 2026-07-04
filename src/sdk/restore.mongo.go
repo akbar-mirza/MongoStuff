@@ -51,7 +51,7 @@ func Restore(
 	}
 
 	if params.IsCompress {
-		args = append(args, "--gzip", "--archive", params.BackupPath+".gz")
+		args = append(args, "--gzip", fmt.Sprintf("--archive=%s", params.BackupPath+".gz"))
 	}
 
 	if !params.IsCompress {

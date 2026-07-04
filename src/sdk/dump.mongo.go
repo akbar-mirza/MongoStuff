@@ -39,7 +39,8 @@ func Dump(
 	}
 
 	if params.Compression {
-		args = append(args, "--archive", params.OutputDir, "--gzip")
+		// mongodump 100.x requires --archive=<path>; space-separated form is parsed as a positional URI.
+		args = append(args, "--gzip", fmt.Sprintf("--archive=%s", params.OutputDir))
 	}
 
 	if params.Collection != "" {

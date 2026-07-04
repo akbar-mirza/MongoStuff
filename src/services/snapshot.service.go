@@ -82,23 +82,32 @@ func ProcessSnapshot(
 	endTime := time.Now()
 	duration := endTime.Sub(startTime)
 
-	var status = func() string {
-		if dumpRes.ErrorStr != "" {
-			return "Failed"
-		}
-		return "Success"
-	}()
+	status := "Success"
+	if dumpRes.ErrorStr != "" {
+		status = "Failed"
+	}
+
+	if status == "Failed" {
+		_, _ = Collection.UpdateOne(
+			context.TODO(),
+			bson.M{"snapshotID": snapshotID},
+			bson.M{"$set": bson.M{
+				"status":   status,
+				"logs":     libs.FallBackString(dumpRes.ErrorStr, dumpRes.Output),
+				"duration": duration.Milliseconds(),
+			}},
+		)
+		return
+	}
 
 	var size int64 = 0
-	if status != "Failed" {
-		fmt.Println("Calculating directory size", outputFile)
-		dirSize, err := libs.CalDirSize(outputFile)
-		if err != nil {
-			fmt.Println("Error calculating directory size")
-			fmt.Println(err)
-		}
-		size = dirSize.Size
+	fmt.Println("Calculating directory size", outputFile)
+	dirSize, err := libs.CalDirSize(outputFile)
+	if err != nil {
+		fmt.Println("Error calculating directory size")
+		fmt.Println(err)
 	}
+	size = dirSize.Size
 
 	slog.Info("Saving snapshot to storage")
 	var storageConfig interfaces.Storage
@@ -153,6 +162,15 @@ func ProcessSnapshot(
 	if err != nil {
 		fmt.Println("Error reading file")
 		fmt.Println(err)
+		_, _ = Collection.UpdateOne(
+			context.TODO(),
+			bson.M{"snapshotID": snapshotID},
+			bson.M{"$set": bson.M{
+				"status":   "Failed",
+				"logs":     err.Error(),
+				"duration": duration.Milliseconds(),
+			}},
+		)
 		return
 	}
 
@@ -166,6 +184,15 @@ func ProcessSnapshot(
 		if err != nil {
 			fmt.Println("Error uploading file")
 			fmt.Println(err)
+			_, _ = Collection.UpdateOne(
+				context.TODO(),
+				bson.M{"snapshotID": snapshotID},
+				bson.M{"$set": bson.M{
+					"status":   "Failed",
+					"logs":     err.Error(),
+					"duration": duration.Milliseconds(),
+				}},
+			)
 			return
 		}
 
