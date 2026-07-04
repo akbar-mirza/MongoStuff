@@ -505,16 +505,30 @@ func ProcessBackUp(backupPolicyID string, isTriggered *bool) {
 		return "Success"
 	}()
 
-	var size int64 = 0
-	if status != "Failed" {
-		fmt.Println("Calculating directory size", outputFile)
-		dirSize, err := libs.CalDirSize(outputFile)
-		if err != nil {
-			fmt.Println("Error calculating directory size")
-			fmt.Println(err)
+	if status == "Failed" {
+		_, _ = BackUpCollection.UpdateOne(
+			context.TODO(),
+			bson.M{"backupID": backupID},
+			bson.M{"$set": bson.M{
+				"status":   status,
+				"logs":     libs.FallBackString(dumpRes.ErrorStr, dumpRes.Output),
+				"duration": duration.Milliseconds(),
+			}},
+		)
+		if isTriggered == nil {
+			go UpdateBackUpPolicyNextRun(backupPolicyID)
 		}
-		size = dirSize.Size
+		return
 	}
+
+	var size int64 = 0
+	fmt.Println("Calculating directory size", outputFile)
+	dirSize, err := libs.CalDirSize(outputFile)
+	if err != nil {
+		fmt.Println("Error calculating directory size")
+		fmt.Println(err)
+	}
+	size = dirSize.Size
 
 	slog.Info("Saving snapshot to storage")
 	var storageConfig interfaces.Storage
@@ -569,6 +583,18 @@ func ProcessBackUp(backupPolicyID string, isTriggered *bool) {
 	if err != nil {
 		fmt.Println("Error reading file")
 		fmt.Println(err)
+		_, _ = BackUpCollection.UpdateOne(
+			context.TODO(),
+			bson.M{"backupID": backupID},
+			bson.M{"$set": bson.M{
+				"status":   "Failed",
+				"logs":     err.Error(),
+				"duration": duration.Milliseconds(),
+			}},
+		)
+		if isTriggered == nil {
+			go UpdateBackUpPolicyNextRun(backupPolicyID)
+		}
 		return
 	}
 
@@ -582,6 +608,18 @@ func ProcessBackUp(backupPolicyID string, isTriggered *bool) {
 		if err != nil {
 			fmt.Println("Error uploading file")
 			fmt.Println(err)
+			_, _ = BackUpCollection.UpdateOne(
+				context.TODO(),
+				bson.M{"backupID": backupID},
+				bson.M{"$set": bson.M{
+					"status":   "Failed",
+					"logs":     err.Error(),
+					"duration": duration.Milliseconds(),
+				}},
+			)
+			if isTriggered == nil {
+				go UpdateBackUpPolicyNextRun(backupPolicyID)
+			}
 			return
 		}
 
