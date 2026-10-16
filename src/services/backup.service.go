@@ -434,16 +434,25 @@ func InitCron() {
 
 	fmt.Printf("Added %d backup policies to cron\n", len(backupPolicies))
 
+	deleteCronExp, err := libs.UnitToCron(1, libs.Hour)
+	if err != nil {
+		fmt.Println("Error creating delete old backups cron expression")
+		fmt.Println(err)
+	} else if err := SCHEDULER.AddJob("delete_old_backups", deleteCronExp, func() {
+		if _, err := DeleteBackupsByRetention(nil); err != nil {
+			fmt.Println("Error deleting backups by retention")
+			fmt.Println(err)
+		}
+	}); err != nil {
+		fmt.Println("Error adding delete old backups cron")
+		fmt.Println(err)
+	}
+
 	// start cron
 	SCHEDULER.Start()
 
-	deleteCronExp, err := libs.UnitToCron(1, libs.Hour)
-	// add delete old backups to every hour
-	SCHEDULER.AddJob("delete_old_backups", deleteCronExp,
-		func() {
-			DeleteBackupsByRetention(nil)
-		},
-	)
+	// Catch backups that already passed retention, without waiting for the next hour.
+	go DeleteBackupsByRetention(nil)
 }
 
 func ProcessBackUp(backupPolicyID string, isTriggered *bool) {
@@ -773,62 +782,66 @@ func DeleteBackup(backupID string) {
 func DeleteBackupsByRetention(
 	connectionID *string,
 ) ([]string, error) {
-	var BackUpCollection = global.GetCollection(global.BackupsCollection)
-	var BackUpPolicyCollection = global.GetCollection(global.BackupPoliciesCollection)
-
-	filter := bson.M{
-		"toBeDeletedAt": bson.M{
-			"$ne": 0,
-			"$lt": time.Now().UnixMilli(),
-		},
-	}
-
-	if connectionID == nil {
-		// get all the backupPolicy ids in BackUpPolicyCollection
-		backupPoliciesIDs, err := BackUpPolicyCollection.Distinct(
-			context.TODO(),
-			"backupPolicyID",
-			bson.M{
-				"connectionID": connectionID,
-			},
-		)
-
-		if err != nil {
-			fmt.Println("Error getting backup policies")
-			fmt.Println(err)
-			return []string{}, err
-		}
-
-		filter["backupPolicyID"] = bson.M{"$in": backupPoliciesIDs}
-
-	}
-
-	// Only get backups that are past the retention date and select backupId
-	cursor, err := BackUpCollection.Find(
-		context.TODO(),
-		filter,
-		&options.FindOptions{
-			Projection: bson.M{"backupID": 1},
-		},
-	)
-
+	policies, err := GetBackUpPolicies(GetBackUpPoliciesParams{
+		ConnectionID: connectionID,
+		Status:       nil,
+	})
 	if err != nil {
-		fmt.Println("Error getting backups")
-		fmt.Println("Error:", err)
+		fmt.Println("Error getting backup policies")
+		fmt.Println(err)
 		return []string{}, err
 	}
+
+	var BackUpCollection = global.GetCollection(global.BackupsCollection)
+	now := time.Now().UnixMilli()
+	const dayMs = int64(24 * 60 * 60 * 1000)
 	backupIds := []string{}
-	for cursor.Next(context.TODO()) {
-		var backup interfaces.Backup
-		err := cursor.Decode(&backup)
-		if err != nil {
-			fmt.Println("Error decoding backup")
-			fmt.Println(err)
-			return []string{}, err
+
+	for _, policy := range policies {
+		// retention 0 means keep forever
+		if policy.Retention <= 0 || policy.BackupPolicyID == "" {
+			continue
 		}
-		fmt.Println("Deleting backup", backup.BackupID)
-		backupIds = append(backupIds, backup.BackupID)
-		go DeleteBackup(backup.BackupID)
+
+		// Delete by the policy's current retention, using the backup's own timestamp.
+		// Older rows never had toBeDeletedAt written, so that field cannot be the only signal.
+		cutoff := now - int64(policy.Retention)*dayMs
+		cursor, err := BackUpCollection.Find(
+			context.TODO(),
+			bson.M{
+				"backupPolicyID": policy.BackupPolicyID,
+				"timestamp": bson.M{
+					"$gt":  int64(0),
+					"$lte": cutoff,
+				},
+			},
+			options.Find().SetProjection(bson.M{"backupID": 1}),
+		)
+		if err != nil {
+			fmt.Println("Error getting backups")
+			fmt.Println(err)
+			return backupIds, err
+		}
+
+		for cursor.Next(context.TODO()) {
+			var backup interfaces.Backup
+			if err := cursor.Decode(&backup); err != nil {
+				fmt.Println("Error decoding backup")
+				fmt.Println(err)
+				continue
+			}
+			if backup.BackupID == "" {
+				continue
+			}
+			fmt.Println("Deleting backup", backup.BackupID)
+			backupIds = append(backupIds, backup.BackupID)
+			DeleteBackup(backup.BackupID)
+		}
+		if err := cursor.Err(); err != nil {
+			cursor.Close(context.TODO())
+			return backupIds, err
+		}
+		cursor.Close(context.TODO())
 	}
 
 	return backupIds, nil
