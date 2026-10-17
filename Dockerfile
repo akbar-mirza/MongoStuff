@@ -29,20 +29,19 @@ RUN rm -rf node_modules package-lock.json && npm cache clean --force &&  npm ins
 RUN HOST=docker npm run build
 
 # [Stage 3]: Create a minimal image for the application
-FROM --platform=linux/amd64 debian:bullseye-slim
+# Bullseye LTS ended August 2026. Its security index still exists, but the
+# .deb files 404, so apt-get install exits 100. Bookworm is still mirrored.
+FROM debian:bookworm-slim
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl gzip libgssapi-krb5-2 \
+    && rm -rf /var/lib/apt/lists/*
 
-# install curl
-RUN  apt-get update && apt-get install -y curl
-
-# install mongodb tools && clean up
-RUN curl https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu1804-x86_64-100.10.0.tgz -o mongodb-tools.tgz \
-    && tar -xvf mongodb-tools.tgz \
-    && mv mongodb-database-tools-ubuntu1804-x86_64-100.10.0/bin /app \
-    && rm -rf mongodb-tools.tgz
-
-# install gzip
-RUN apt-get install -y gzip
+# These tools need libgssapi-krb5-2, which Bookworm provides.
+RUN curl -fsSL https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-x86_64-100.10.0.tgz -o mongodb-tools.tgz \
+    && tar -xzf mongodb-tools.tgz \
+    && mv mongodb-database-tools-ubuntu2204-x86_64-100.10.0/bin /app \
+    && rm -rf mongodb-tools.tgz mongodb-database-tools-ubuntu2204-x86_64-100.10.0
 
 
 # Set working directory
